@@ -65,7 +65,7 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)
 .ctl .seg{box-shadow:none;background:#EDF1EC}
 .ctl .sum{font-weight:700;font-size:14px;color:var(--mut);white-space:nowrap}.ctl .sum b{color:var(--ink);font-size:18px}
 .leaflet-top.leaflet-left{top:80px}
-.hint{position:absolute;z-index:500;left:14px;bottom:30px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.96);font-weight:600;font-size:14px;box-shadow:0 4px 16px rgba(20,35,29,.18)}
+.hint{position:absolute;z-index:500;left:14px;bottom:30px;max-width:calc(100% - 28px);padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.96);font-weight:600;font-size:14px;box-shadow:0 4px 16px rgba(20,35,29,.18)}
 .bars{display:flex;gap:6px;align-items:stretch;height:150px;margin-top:10px}
 .bar{flex:1;display:flex;flex-direction:column;min-width:0;font-size:11px;color:var(--mut);text-align:center}
 .bar .up,.bar .dn{flex:1;display:flex;position:relative}
@@ -146,6 +146,7 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)
         <div class="sum"><span id="stLabel">Territoire</span> <b><span id="stKm">0</span> km²</b> · rang <b id="stRank">–</b></div>
       </div>
       <div class="hint" id="mapHint" style="display:none"></div>
+      <div class="hint" id="trackBar" style="display:none;left:50%;transform:translateX(-50%);bottom:30px"><span id="trackTitle"></span> <button class="btn sm alt" id="trackOff" type="button" style="margin-left:8px">Masquer la trace</button></div>
     </div>
   </section>
 
@@ -453,6 +454,24 @@ async function loadStats(){
   const {data:rk}=await sb.rpc('rc_ranking',{p_map:st.map,p_discipline:st.disc});
   const pos=(rk||[]).find(r=>ids.includes(r.owner));$('#stRank').textContent=pos?pos.pos+(pos.pos==1?'er':'e'):'–';
 }
+let trackLayer=null;
+function clearTrack(){if(trackLayer){trackLayer.remove();trackLayer=null;}$('#trackBar').style.display='none';}
+$('#trackOff').addEventListener('click',clearTrack);
+$('#rides').addEventListener('click',async e=>{const b=e.target.closest('button[data-ride]');if(!b)return;
+  b.disabled=true;const t=b.textContent;b.textContent='Chargement…';
+  const {data,error}=await sb.from('rc_rides').select('title,started_at,distance_km,discipline,club_id,track').eq('id',b.dataset.ride).maybeSingle();
+  b.disabled=false;b.textContent=t;
+  if(error||!data){alert('Erreur : '+(error?error.message:'sortie introuvable'));return;}
+  if(!data.track||!data.track.length){b.textContent='Trace non disponible';b.disabled=true;return;}
+  st.map=data.club_id?'club':'solo';st.disc=data.discipline;
+  $$('#segMap button').forEach(x=>x.classList.toggle('on',x.dataset.m===st.map));$$('#chipsDisc button').forEach(x=>x.classList.toggle('on',x.dataset.d===st.disc));
+  show('carte');
+  setTimeout(()=>{clearTrack();
+    trackLayer=L.polyline(data.track,{color:'#C2261B',weight:4,opacity:.95}).addTo(map);
+    $('#trackTitle').textContent=(data.title||'Sortie')+' · '+new Date(data.started_at).toLocaleDateString('fr-FR')+(data.distance_km?' · '+data.distance_km+' km':'');
+    $('#trackBar').style.display='block';
+    map.fitBounds(trackLayer.getBounds(),{maxZoom:15,padding:[70,70]});},150);
+});
 const fmtKm=c=>(c*KM2).toFixed(2).replace('.',',');
 
 /* ---------- Page membre ---------- */
@@ -532,8 +551,8 @@ async function loadMemRank(){
   $('#memRank').innerHTML=out.join('');
 }
 async function loadRides(){
-  const {data:rd}=await sb.from('rc_rides').select('title,started_at,distance_km,new_cells,discipline,club_id').order('started_at',{ascending:false}).limit(8);
-  $('#rides').innerHTML=(rd&&rd.length)?rd.map(r=>`<div class="item"><div class="grow"><b>${esc(r.title||'Sortie')}</b><small>${new Date(r.started_at).toLocaleDateString('fr-FR')} · ${r.distance_km??'?'} km · ${DISC[r.discipline]}${r.club_id?' · club':''}</small></div><b>+${fmtKm(r.new_cells)} km²</b></div>`).join(''):'<div class="item"><div class="grow"><small>Aucune sortie pour le moment.</small></div></div>';
+  const {data:rd}=await sb.from('rc_rides').select('id,title,started_at,distance_km,new_cells,discipline,club_id').order('started_at',{ascending:false}).limit(8);
+  $('#rides').innerHTML=(rd&&rd.length)?rd.map(r=>`<div class="item"><div class="grow"><b>${esc(r.title||'Sortie')}</b><small>${new Date(r.started_at).toLocaleDateString('fr-FR')} · ${r.distance_km??'?'} km · ${DISC[r.discipline]}${r.club_id?' · club':''}</small></div><button class="btn sm alt" data-ride="${r.id}" type="button">Voir la trace</button><b>+${fmtKm(r.new_cells)} km²</b></div>`).join(''):'<div class="item"><div class="grow"><small>Aucune sortie pour le moment.</small></div></div>';
 }
 
 /* ---------- Classements ---------- */
@@ -627,6 +646,8 @@ $('#send').addEventListener('click',async()=>{
   const {data,error}=await sb.rpc('rc_submit_ride',{p_title:$('#ttl').value.trim()||'Sortie',p_started_at:a.started.toISOString(),p_distance_km:+a.km.toFixed(2),p_discipline:disc,p_club_id:club,p_fingerprint:a.fingerprint,p_cells:a.cells});
   $('#send').disabled=false;
   if(error){msg($('#impMsg'),error.message,'err');return;}
+  if(!data.duplicate&&data.ride_id){const k=Math.max(1,Math.ceil(a.pts.length/1500)),tr=a.pts.filter((_,i)=>i%k===0||i===a.pts.length-1).map(p=>[Math.round(p.lat*1e5)/1e5,Math.round(p.lon*1e5)/1e5]);
+    sb.rpc('rc_set_ride_track',{p_ride:data.ride_id,p_track:tr}).then(()=>{});}
   if(data.duplicate){msg($('#impMsg'),'Cette sortie a déjà été importée : elle ne compte qu’une fois.','err');return;}
   msg($('#impMsg'),`Sortie enregistrée : ${data.cells} mailles, dont ${data.new_cells} nouvelles pour toi (${(data.new_cells*KM2).toFixed(2).replace('.',',')} km²).`,'ok');
   st.map=club?'club':'solo';st.disc=disc;
