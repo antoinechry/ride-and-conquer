@@ -325,29 +325,40 @@ function cellRect(x,y){const a=SM.unproject(L.point(x*S,y*S)),b=SM.unproject(L.p
 function hue(id){let h=0;for(const c of id)h=(h*31+c.charCodeAt(0))>>>0;return PAL[h%PAL.length];}
 function mineIds(){return st.map==='solo'?new Set([st.user.id]):new Set(st.myClubs.map(c=>c.id));}
 
+function factor(z){return z>=13?1:z===12?4:z===11?8:z===10?16:z===9?32:z===8?64:z===7?128:256;}
+function blockRect(bx,by,f){const a=SM.unproject(L.point(bx*f*S,by*f*S)),b=SM.unproject(L.point((bx+1)*f*S,(by+1)*f*S));return [[a.lat,a.lng],[b.lat,b.lng]];}
 async function refreshMap(){
   if(!map||!st.user)return;
   const seq=++loadSeq,hint=$('#mapHint');
   loadStats();
-  if(map.getZoom()<11){cellLayer.clearLayers();hint.style.display='block';hint.textContent='Zoome pour voir les mailles.';return;}
-  hint.style.display='none';
+  const f=factor(map.getZoom());
   const b=map.getBounds(),p1=SM.project(b.getSouthWest()),p2=SM.project(b.getNorthEast());
   const x1=Math.floor(p1.x/S),x2=Math.floor(p2.x/S),y1=Math.floor(p1.y/S),y2=Math.floor(p2.y/S);
-  const rows=[];
-  for(let from=0;from<8000;from+=1000){
-    const {data,error}=await sb.from('rc_cells').select('x,y,owner_id,last_pass').eq('map',st.map).eq('discipline',st.disc)
-      .gte('x',x1).lte('x',x2).gte('y',y1).lte('y',y2).gt('last_pass',daysAgo(TTL)).range(from,from+999);
+  const mine=mineIds(),mineArr=[...mine],now=Date.now(),rows=[];
+  hint.style.display='none';
+  for(let from=0;from<(f===1?8000:6000);from+=1000){
+    const q=f===1
+      ?sb.from('rc_cells').select('x,y,owner_id,last_pass').eq('map',st.map).eq('discipline',st.disc).gte('x',x1).lte('x',x2).gte('y',y1).lte('y',y2).gt('last_pass',daysAgo(TTL)).order('x').order('y').range(from,from+999)
+      :sb.rpc('rc_cells_agg',{p_map:st.map,p_discipline:st.disc,p_x1:x1,p_x2:x2,p_y1:y1,p_y2:y2,p_f:f,p_mine:mineArr.length?mineArr:['00000000-0000-0000-0000-000000000000']}).range(from,from+999);
+    const {data,error}=await q;
     if(seq!==loadSeq)return;
     if(error){hint.style.display='block';hint.textContent='Erreur : '+error.message;return;}
     rows.push(...data);if(data.length<1000)break;
   }
   cellLayer.clearLayers();
-  const mine=mineIds(),now=Date.now();
   rows.forEach(r=>{
-    const age=(now-new Date(r.last_pass))/864e5,isMine=mine.has(r.owner_id),fade=age>14,col=isMine?'47,111,235':hue(r.owner_id);
-    const rect=L.rectangle(cellRect(r.x,r.y),{renderer:cellRenderer,stroke:true,color:'#fff',weight:.6,opacity:.5,fillColor:'rgb('+col+')',fillOpacity:fade?.2:(isMine?.6:.45),interactive:true});
-    rect.on('click',()=>openCell(r,rect));cellLayer.addLayer(rect);});
-  if(rows.length>=8000){hint.style.display='block';hint.textContent='Zone très dense : zoome pour tout afficher.';}
+    let rect,owner,newest,isMine;
+    if(f===1){
+      const age=(now-new Date(r.last_pass))/864e5;isMine=mine.has(r.owner_id);owner=r.owner_id;newest=r.last_pass;
+      rect=L.rectangle(cellRect(r.x,r.y),{renderer:cellRenderer,stroke:true,color:'#fff',weight:.6,opacity:.5,fillColor:'rgb('+(isMine?'47,111,235':hue(owner))+')',fillOpacity:age>14?.2:(isMine?.6:.45),interactive:true});
+    }else{
+      isMine=r.n_mine*2>=r.n;owner=r.top_owner;newest=r.newest;
+      const age=(now-new Date(newest))/864e5,fill=Math.min(1,r.n/(f*f)),op=(0.3+0.45*fill)*(age>14?.45:1);
+      rect=L.rectangle(blockRect(r.blk_x,r.blk_y,f),{renderer:cellRenderer,stroke:false,fillColor:'rgb('+(isMine?'47,111,235':hue(owner))+')',fillOpacity:op,interactive:true});
+    }
+    rect.on('click',()=>openCell({owner_id:owner,last_pass:newest,count:f===1?1:r.n},rect));cellLayer.addLayer(rect);});
+  if(f===1&&rows.length>=8000){hint.style.display='block';hint.textContent='Zone très dense : zoome pour tout afficher.';}
+  else if(f>1&&rows.length){hint.style.display='block';hint.textContent='Vue regroupée : zoome pour voir les mailles une à une.';}
 }
 async function nameOf(id){
   if(st.names[id])return st.names[id];
@@ -356,7 +367,7 @@ async function nameOf(id){
 }
 async function openCell(r,rect){
   const n=await nameOf(r.owner_id),left=Math.max(0,Math.ceil(TTL-(Date.now()-new Date(r.last_pass))/864e5));
-  rect.bindPopup(`<b>${esc(n)}</b><br>Libérée dans ${left} j`).openPopup();
+  rect.bindPopup(`<b>${esc(n)}</b><br>${r.count>1?r.count+' mailles dans ce bloc · ':''}Libérée dans ${left} j`).openPopup();
 }
 
 async function loadStats(){
