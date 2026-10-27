@@ -14,7 +14,7 @@ header h1{margin:0;font-size:20px;font-weight:800}
 header span{color:#B9C6BE;font-size:14px}
 header label{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;min-height:44px;cursor:pointer}
 header a{color:#7FD9B2;font-weight:700;margin-left:auto;min-height:44px;display:flex;align-items:center}
-.grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:8px;padding:8px}
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:minmax(320px,46vh);gap:8px;padding:8px;overflow:auto}
 .tile{position:relative;border-radius:16px;overflow:hidden;background:#cdd6c9;min-height:0}
 .tile .m{position:absolute;inset:0}
 .cap{position:absolute;z-index:1000;left:8px;top:8px;right:8px;display:flex;gap:8px;align-items:flex-start;pointer-events:none}
@@ -22,7 +22,7 @@ header a{color:#7FD9B2;font-weight:700;margin-left:auto;min-height:44px;display:
 .cap b{display:block;font-size:15px}
 .cap small{display:block;color:#4D5E55;font-size:12px;line-height:1.3}
 .cap button{margin-left:auto;pointer-events:auto;min-height:44px;padding:0 14px;border-radius:999px;border:0;background:#1F6F54;color:#fff;font:700 14px 'Figtree',sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-.grid.solo{grid-template-columns:1fr}
+.grid.solo{grid-template-columns:1fr;grid-auto-rows:minmax(0,1fr);overflow:hidden}
 .grid.solo .tile{display:none}
 .grid.solo .tile.big{display:block}
 .leaflet-control-attribution{font-size:9px}
@@ -53,7 +53,11 @@ const LAYERS=[
  {k:'positron',name:'CARTO Positron',desc:'Très pâle : idéal pour mettre les couleurs en avant.',url:'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',max:20,sub:'abcd',att:CARTO},
  {k:'dark',name:'CARTO Dark Matter',desc:'Fond sombre pour un mode nuit.',url:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',max:20,sub:'abcd',att:CARTO},
  {k:'ign',name:'Plan IGN',desc:'Carte officielle française, Licence ouverte Etalab.',url:IGN('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2','image/png'),max:19,att:'© <a href="https://geoservices.ign.fr">IGN</a> – Géoplateforme (Licence ouverte Etalab)'},
- {k:'ortho',name:'Photo aérienne IGN',desc:'Vue satellite/orthophoto, Licence ouverte Etalab.',url:IGN('ORTHOIMAGERY.ORTHOPHOTOS','image/jpeg'),max:19,att:'© <a href="https://geoservices.ign.fr">IGN</a> – Géoplateforme (Licence ouverte Etalab)'}
+ {k:'ortho',name:'Photo aérienne IGN',desc:'Vue satellite/orthophoto, Licence ouverte Etalab.',url:IGN('ORTHOIMAGERY.ORTHOPHOTOS','image/jpeg'),max:19,att:'© <a href="https://geoservices.ign.fr">IGN</a> – Géoplateforme (Licence ouverte Etalab)'},
+ {k:'natgeo',name:'Esri National Geographic',desc:'Style atlas, chaud et illustré. Plus fun.',url:'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',max:16,att:'Tuiles © Esri — National Geographic, Garmin, HERE, UNEP-WCMC, USGS, NASA, ESA, METI, NRCAN, GEBCO, NOAA'},
+ {k:'esritopo',name:'Esri World Topo',desc:'Topo colorée avec relief ombré.',url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',max:19,att:'Tuiles © Esri — HERE, Garmin, FAO, NOAA, USGS, © contributeurs OpenStreetMap'},
+ {k:'relief',name:'Esri Relief ombré',desc:'Montagnes en relief, très visuel (zoom limité).',url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}',max:13,att:'Tuiles © Esri — Esri, NASA, NGA, USGS'},
+ {k:'hot',name:'OSM Humanitarian',desc:'Couleurs vives et gros pictos, style jeu.',url:'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',max:19,att:OSM+' | Style HOT, tuiles © OSM France'}
 ];
 const S=150,SM=L.Projection.SphericalMercator;
 const h=(x,y)=>{const n=Math.sin(x*127.1+y*311.7)*43758.5453;return n-Math.floor(n);};

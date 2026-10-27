@@ -42,7 +42,11 @@ const L=[
  {n:'CARTO Positron',d:'Très pâle : fait ressortir les couleurs.',u:'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',a:OSM+' | © CARTO'},
  {n:'CARTO Dark Matter',d:'Fond sombre pour un mode nuit.',u:'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',a:OSM+' | © CARTO'},
  {n:'Plan IGN',d:'Carte officielle française, Licence ouverte Etalab.',u:IGN('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2','image/png'),a:'© IGN – Géoplateforme (Licence ouverte Etalab)'},
- {n:'Photo aérienne IGN',d:'Orthophoto, Licence ouverte Etalab.',u:IGN('ORTHOIMAGERY.ORTHOPHOTOS','image/jpeg'),a:'© IGN – Géoplateforme (Licence ouverte Etalab)'}
+ {n:'Photo aérienne IGN',d:'Orthophoto, Licence ouverte Etalab.',u:IGN('ORTHOIMAGERY.ORTHOPHOTOS','image/jpeg'),a:'© IGN – Géoplateforme (Licence ouverte Etalab)'},
+ {n:'Esri National Geographic',d:'Style atlas, chaud et illustré. Plus fun.',u:'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',a:'Tuiles © Esri — National Geographic, Garmin, HERE, UNEP-WCMC, USGS, NASA, ESA, METI, NRCAN, GEBCO, NOAA'},
+ {n:'Esri World Topo',d:'Topo colorée avec relief ombré.',u:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',a:'Tuiles © Esri — HERE, Garmin, FAO, NOAA, USGS, © contributeurs OpenStreetMap'},
+ {n:'Esri Relief ombré',d:'Montagnes en relief, très visuel (zoom limité à 13 : la vue de quartier restera grise).',u:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}',a:'Tuiles © Esri — Esri, NASA, NGA, USGS'},
+ {n:'OSM Humanitarian',d:'Couleurs vives et gros pictos, style jeu.',u:'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',a:OSM+' | Style HOT, tuiles © OSM France'}
 ];
 const LAT=48.5846,LON=7.7507;
 function tile(z){const n=2**z,r=LAT*Math.PI/180;return [Math.floor((LON+180)/360*n),Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n)];}
