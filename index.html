@@ -325,7 +325,7 @@ function cellRect(x,y){const a=SM.unproject(L.point(x*S,y*S)),b=SM.unproject(L.p
 function hue(id){let h=0;for(const c of id)h=(h*31+c.charCodeAt(0))>>>0;return PAL[h%PAL.length];}
 function mineIds(){return st.map==='solo'?new Set([st.user.id]):new Set(st.myClubs.map(c=>c.id));}
 
-function factor(z){return z>=13?1:z===12?4:z===11?8:z===10?16:z===9?32:z===8?64:z===7?128:256;}
+function factor(z){return z>=13?1:z===12?2:z===11?4:z===10?8:z===9?16:z===8?32:z===7?64:128;}  // blocs d'environ 8 px à l'écran
 function blockRect(bx,by,f){const a=SM.unproject(L.point(bx*f*S,by*f*S)),b=SM.unproject(L.point((bx+1)*f*S,(by+1)*f*S));return [[a.lat,a.lng],[b.lat,b.lng]];}
 async function refreshMap(){
   if(!map||!st.user)return;
@@ -336,14 +336,18 @@ async function refreshMap(){
   const x1=Math.floor(p1.x/S),x2=Math.floor(p2.x/S),y1=Math.floor(p1.y/S),y2=Math.floor(p2.y/S);
   const mine=mineIds(),mineArr=[...mine],now=Date.now(),rows=[];
   hint.style.display='none';
-  for(let from=0;from<(f===1?8000:6000);from+=1000){
-    const q=f===1
-      ?sb.from('rc_cells').select('x,y,owner_id,last_pass').eq('map',st.map).eq('discipline',st.disc).gte('x',x1).lte('x',x2).gte('y',y1).lte('y',y2).gt('last_pass',daysAgo(TTL)).order('x').order('y').range(from,from+999)
-      :sb.rpc('rc_cells_agg',{p_map:st.map,p_discipline:st.disc,p_x1:x1,p_x2:x2,p_y1:y1,p_y2:y2,p_f:f,p_mine:mineArr.length?mineArr:['00000000-0000-0000-0000-000000000000']}).range(from,from+999);
-    const {data,error}=await q;
+  const page=from=>f===1
+    ?sb.from('rc_cells').select('x,y,owner_id,last_pass').eq('map',st.map).eq('discipline',st.disc).gte('x',x1).lte('x',x2).gte('y',y1).lte('y',y2).gt('last_pass',daysAgo(TTL)).order('x').order('y').range(from,from+999)
+    :sb.rpc('rc_cells_agg',{p_map:st.map,p_discipline:st.disc,p_x1:x1,p_x2:x2,p_y1:y1,p_y2:y2,p_f:f,p_mine:mineArr.length?mineArr:['00000000-0000-0000-0000-000000000000']}).range(from,from+999);
+  const MAXP=f===1?25:30;
+  for(let g=0;g<MAXP;g+=5){          // pages de 1000 lignes chargées 5 par 5 en parallèle
+    const res=await Promise.all(Array.from({length:Math.min(5,MAXP-g)},(_,i)=>page((g+i)*1000)));
     if(seq!==loadSeq)return;
-    if(error){hint.style.display='block';hint.textContent='Erreur : '+error.message;return;}
-    rows.push(...data);if(data.length<1000)break;
+    let done=false;
+    for(const {data,error} of res){
+      if(error){hint.style.display='block';hint.textContent='Erreur : '+error.message;return;}
+      rows.push(...data);if(data.length<1000)done=true;}
+    if(done)break;
   }
   cellLayer.clearLayers();
   rows.forEach(r=>{
@@ -357,7 +361,7 @@ async function refreshMap(){
       rect=L.rectangle(blockRect(r.blk_x,r.blk_y,f),{renderer:cellRenderer,stroke:false,fillColor:'rgb('+(isMine?'47,111,235':hue(owner))+')',fillOpacity:op,interactive:true});
     }
     rect.on('click',()=>openCell({owner_id:owner,last_pass:newest,count:f===1?1:r.n},rect));cellLayer.addLayer(rect);});
-  if(f===1&&rows.length>=8000){hint.style.display='block';hint.textContent='Zone très dense : zoome pour tout afficher.';}
+  if(f===1&&rows.length>=25000){hint.style.display='block';hint.textContent='Zone très dense : zoome pour tout afficher.';}
   else if(f>1&&rows.length){hint.style.display='block';hint.textContent='Vue regroupée : zoome pour voir les mailles une à une.';}
 }
 async function nameOf(id){
