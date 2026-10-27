@@ -3,232 +3,451 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ride & Conquer · Carte</title>
-<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;600;700;800&amp;display=swap" rel="stylesheet">
+<title>Ride &amp; Conquer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-body{margin:0;background:#E4EADF}
-a{color:#1F6F54}a:hover{color:#2B8A6B}
+:root{--bg:#E4EADF;--ink:#14231D;--green:#1F6F54;--green2:#2B8A6B;--blue:#2F6FEB;--nav:#0F1512;--mut:#4D5E55;--line:#E1E7E2;--card:#fff;--danger:#A12A15}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--green)}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 24px;padding:10px 24px;background:var(--nav);color:#fff}
+.logo{font-weight:800;font-size:22px;letter-spacing:-.01em}.logo b{color:#7FD9B2}
+nav{display:flex;flex-wrap:wrap;gap:4px;flex:1}
+nav button,nav a{display:flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;border:0;background:none;color:#fff;font-weight:600;font-size:15px;text-decoration:none}
+nav button.on{background:var(--bg);color:var(--ink);font-weight:700}
+.me{display:flex;align-items:center;gap:10px;font-size:14px;color:#B9C6BE}
+.av{width:44px;height:44px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
+main{max-width:1440px;margin:0 auto;padding:20px 24px 48px}
+.view{display:none}.view.on{display:block}
+.card{background:var(--card);border-radius:22px;padding:20px;box-shadow:0 2px 12px rgba(20,35,29,.08)}
+h1{margin:0 0 6px;font-size:34px;line-height:1.1;font-weight:800}
+h2{margin:0 0 10px;font-size:19px;font-weight:800}
+p.sub{margin:0 0 18px;color:var(--mut);line-height:1.5;max-width:680px}
+.btn{min-height:48px;padding:0 22px;border-radius:999px;border:0;background:var(--green);color:#fff;font-weight:800}
+.btn.alt{background:#fff;color:var(--ink);border:1.5px solid var(--ink)}
+.btn.dark{background:var(--ink)}
+.btn.sm{min-height:44px;padding:0 16px;font-size:14px}
+.btn[disabled]{opacity:.5;cursor:default}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{min-height:44px;padding:0 18px;border-radius:14px;border:1.5px solid var(--ink);background:#fff;font-weight:700;font-size:15px}
+.chip.on{background:var(--ink);color:#fff}
+.seg{display:flex;gap:4px;padding:4px;border-radius:999px;background:#fff;box-shadow:0 4px 16px rgba(20,35,29,.18)}
+.seg button{border:0;min-height:44px;padding:0 22px;border-radius:999px;background:none;font-weight:700}
+.seg button.on{background:var(--green);color:#fff}
+input[type=text],input[type=email],input[type=password],select{width:100%;min-height:48px;padding:0 14px;border-radius:12px;border:1.5px solid #B9C6BE;background:#fff}
+label{display:block;font-weight:700;font-size:14px;margin:12px 0 6px}
+.row{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.msg{margin-top:12px;padding:12px 14px;border-radius:12px;background:#F3F6F2;font-size:14px;line-height:1.45}
+.msg.err{background:#FBE0DA;color:var(--danger)}.msg.ok{background:#D5EFE2;color:#14573F}
+table{width:100%;border-collapse:collapse}
+td,th{padding:12px 8px;border-top:1px solid var(--line);text-align:left}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);border-top:0}
+.num{text-align:right;font-weight:800}
+.me-row td{background:#EAF1FD}
+.list{display:flex;flex-direction:column}
+.item{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.item .grow{flex:1;min-width:0}
+.item small{display:block;color:var(--mut)}
+#mapwrap{position:relative;flex:999 1 600px;min-width:0;height:calc(100vh - 150px);min-height:520px;border-radius:24px;overflow:hidden;box-shadow:0 4px 22px rgba(20,35,29,.14)}
+#map{position:absolute;inset:0;z-index:0}
+.ctl{position:absolute;z-index:500;top:14px;left:14px;right:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;pointer-events:none}
+.ctl>*{pointer-events:auto}
+.hint{position:absolute;z-index:500;left:14px;bottom:30px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.96);font-weight:600;font-size:14px;box-shadow:0 4px 16px rgba(20,35,29,.18)}
+.side{flex:1 1 320px;max-width:440px;min-width:0;display:flex;flex-direction:column;gap:16px}
+.big{font-weight:800;font-size:44px;line-height:1.05}
+.big small{font-size:18px;color:var(--mut);font-weight:700}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;font-weight:600;color:var(--mut);margin-top:10px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+#auth{position:fixed;inset:0;z-index:2000;background:var(--bg);display:none;align-items:center;justify-content:center;padding:20px;overflow:auto}
+#auth .card{width:100%;max-width:440px}
+.drop{border:2px dashed #9DB3A5;border-radius:18px;padding:26px;text-align:center;background:rgba(255,255,255,.55)}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin:14px 0}
+.stat div{background:#F3F6F2;border-radius:14px;padding:12px}
+.stat b{display:block;font-size:24px}
+.stat span{font-size:12px;color:var(--mut);font-weight:700}
+.leaflet-container{font-family:'Figtree',sans-serif}
+.pillname{background:#fff;border:1.5px solid var(--green);color:var(--green);font-weight:700;border-radius:999px;padding:2px 10px;box-shadow:0 2px 8px rgba(20,35,29,.18)}
 </style>
 </head>
 <body>
-<div id="app"></div>
-<template id="tpl">
 
-<div style="min-height: 900px; background: #E4EADF; color: #14231D; font-family: 'Figtree', system-ui, sans-serif">
-
-  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 28px; padding: 10px 28px; background: #0F1512; color: #FFFFFF">
-    <div style="font-weight: 800; font-size: 22px; letter-spacing: -0.01em">Ride <span style="color: #7FD9B2">&amp;</span> Conquer</div>
-    <nav aria-label="Navigation principale" style="display: flex; flex-wrap: wrap; gap: 4px; flex-grow: 1">
-      <a href="index.html" aria-current="page" style="display: flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; background: #E4EADF; color: #14231D; font-weight: 700; font-size: 15px; text-decoration: none">Carte</a>
-      <a href="index.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; color: #FFFFFF; font-weight: 600; font-size: 15px; text-decoration: none">Mon territoire</a>
-      <a href="index.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; color: #FFFFFF; font-weight: 600; font-size: 15px; text-decoration: none">Classements</a>
-      <a href="index.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; color: #FFFFFF; font-weight: 600; font-size: 15px; text-decoration: none">Clubs</a>
-      <a href="connexions.html" style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; color: #FFFFFF; font-weight: 600; font-size: 15px; text-decoration: none">Connexions<span style="width: 8px; height: 8px; border-radius: 50%; background: #7FD9B2"></span></a>
-    </nav>
-    <div style="display: flex; align-items: center; gap: 12px">
-      <div style="font-size: 13px; font-weight: 600; color: #B9C6BE">Automne · J-54</div>
-      <a href="connexions.html" aria-label="Mon profil" style="width: 44px; height: 44px; border-radius: 50%; background: #1F6F54; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; text-decoration: none">AC</a>
+<div id="auth">
+  <div class="card">
+    <div class="logo" style="color:var(--ink)">Ride <b style="color:var(--green)">&amp;</b> Conquer</div>
+    <p class="sub" style="margin-top:8px">Conquiers ton territoire à vélo. Crée ton compte pour commencer à zéro.</p>
+    <div class="chips" id="authTabs" style="margin-bottom:6px">
+      <button class="chip on" data-m="in">Connexion</button>
+      <button class="chip" data-m="up">Créer un compte</button>
     </div>
-  </header>
-
-  <main style="max-width: 1440px; margin: 0 auto; padding: 24px 28px 40px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; box-sizing: border-box">
-
-    <section aria-label="Carte des territoires" style="position: relative; flex: 999 1 600px; min-width: 0; height: 700px; border-radius: 24px; overflow: hidden; background: #DCE5D6; box-shadow: 0 4px 22px rgba(20,35,29,0.14)">
-
-      <div style="position: absolute; left: 50%; margin-left: -550px; top: 0; width: 1100px; height: 700px">
-        <img alt="" src="img/strasbourg.jpg" style="position: absolute; left: -243px; top: -76px; width: 1371px; height: 1112px; max-width: none">
-        <div style="position: absolute; left: 0; top: 0; display: grid; grid-template-columns: repeat(42, 26px); grid-auto-rows: 26px">
-          <sc-for list="{{cells}}" as="c" hint-placeholder-count="1092">
-            <div style="background: {{c.bg}}; box-shadow: inset 0 0 0 1px {{c.bd}}"></div>
-          </sc-for>
-        </div>
-        <svg aria-hidden="true" width="1100" height="700" viewBox="0 0 1100 700" style="position: absolute; left: 0; top: 0">
-          <sc-if value="{{isSolo}}" hint-placeholder-val="{{true}}">
-            <path d="M440 240 C 530 210 650 270 670 350 C 682 420 610 460 545 480 C 490 498 450 450 425 400 C 395 340 405 275 440 240 Z" stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linejoin="round"></path>
-            <path d="M440 240 C 530 210 650 270 670 350 C 682 420 610 460 545 480 C 490 498 450 450 425 400 C 395 340 405 275 440 240 Z" stroke="#2F6FEB" stroke-width="3.5" fill="none" stroke-linejoin="round"></path>
-          </sc-if>
-        </svg>
-        <sc-for list="{{pills}}" as="p" hint-placeholder-count="4">
-          <div style="position: absolute; left: {{p.left}}px; top: {{p.top}}px; padding: 6px 12px; border-radius: 999px; background: #FFFFFF; border: 1.5px solid #1F6F54; color: #1F6F54; font-weight: 700; font-size: 14px; white-space: nowrap; box-shadow: 0 2px 8px rgba(20,35,29,0.18)">{{p.name}}</div>
-        </sc-for>
-        <div style="position: absolute; left: {{meLeft}}px; top: {{meTop}}px; width: 16px; height: 16px; border-radius: 50%; background: #2F6FEB; border: 3px solid #FFFFFF; box-shadow: 0 2px 8px rgba(20,35,29,0.3)"></div>
-      </div>
-
-      <div style="position: absolute; top: 16px; left: 16px; right: 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
-        <div role="group" aria-label="Choix de la carte" style="display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: #FFFFFF; box-shadow: 0 4px 16px rgba(20,35,29,0.18)">
-          <button onClick="{{pickSolo}}" style="border: 0; min-height: 44px; padding: 0 22px; border-radius: 999px; font-family: 'Figtree', sans-serif; font-weight: 700; font-size: 15px; cursor: pointer; background: {{soloBg}}; color: {{soloFg}}">Solo</button>
-          <button onClick="{{pickClub}}" style="border: 0; min-height: 44px; padding: 0 22px; border-radius: 999px; font-family: 'Figtree', sans-serif; font-weight: 700; font-size: 15px; cursor: pointer; background: {{clubBg}}; color: {{clubFg}}">Club</button>
-        </div>
-        <div role="group" aria-label="Discipline" style="display: flex; gap: 8px; flex-wrap: wrap">
-          <sc-for list="{{discs}}" as="d" hint-placeholder-count="3">
-            <button onClick="{{d.pick}}" style="min-height: 44px; padding: 0 20px; border-radius: 14px; border: 1.5px solid #14231D; background: {{d.bg}}; color: {{d.fg}}; font-family: 'Figtree', sans-serif; font-weight: 700; font-size: 15px; cursor: pointer">{{d.label}}</button>
-          </sc-for>
-        </div>
-        <button aria-label="Me localiser" style="margin-left: auto; width: 48px; height: 48px; border-radius: 50%; border: 0; background: #FFFFFF; color: #2F6FEB; box-shadow: 0 4px 16px rgba(20,35,29,0.18); display: flex; align-items: center; justify-content: center; cursor: pointer">
-          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 11 21 3l-8 18-2-8-8-2z"></path></svg></button>
-      </div>
-
-      <div style="position: absolute; left: 16px; right: 16px; bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; padding: 12px 16px; border-radius: 18px; background: rgba(255,255,255,0.96); box-shadow: 0 4px 16px rgba(20,35,29,0.18)">
-        <div style="display: flex; flex-direction: column; gap: 2px; flex: 1 1 240px">
-          <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #4D5E55"><div>Saison d'automne</div><div>Fin dans 54 j</div></div>
-          <div style="position: relative; height: 26px; border-radius: 8px; background: #EEF2EE; overflow: hidden">
-            <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 40%; background: #D5E3DA"></div>
-            <div style="position: absolute; left: 40%; top: 0; bottom: 0; width: 2px; background: #14231D"></div>
-            <div style="position: absolute; left: 40%; top: 4px; margin-left: 6px; padding: 1px 7px; border-radius: 6px; background: #14231D; color: #FFFFFF; font-size: 10px; font-weight: 800; letter-spacing: 0.06em">AUJOURD'HUI</div>
-          </div>
-        </div>
-        <div style="display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; font-weight: 600; color: #4D5E55">
-          <div style="display: flex; align-items: center; gap: 6px"><div style="width: 12px; height: 12px; border-radius: 3px; background: #2F6FEB"></div>{{mineLabel}}</div>
-          <div style="display: flex; align-items: center; gap: 6px"><div style="width: 12px; height: 12px; border-radius: 3px; background: #E8785A"></div>Rivaux</div>
-          <div style="display: flex; align-items: center; gap: 6px"><div style="width: 12px; height: 12px; border-radius: 3px; background: rgba(47,111,235,0.2); border: 1px dashed #2F6FEB; box-sizing: border-box"></div>Pâlit</div>
-        </div>
-      </div>
-    </section>
-
-    <aside aria-label="Résumé" style="flex: 1 1 340px; max-width: 460px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
-
-      <section style="padding: 20px; border-radius: 22px; background: #FFFFFF; box-shadow: 0 2px 12px rgba(20,35,29,0.08); display: flex; flex-direction: column; gap: 14px">
-        <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 12px">
-          <div style="display: flex; flex-direction: column; gap: 2px">
-            <div style="font-size: 13px; font-weight: 600; color: #4D5E55">{{label}}</div>
-            <div style="font-weight: 800; font-size: 44px; line-height: 1.05">{{total}} <span style="font-size: 18px; color: #4D5E55">km²</span></div>
-          </div>
-          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px">
-            <div style="font-size: 13px; font-weight: 600; color: #4D5E55">{{zone}}</div>
-            <div style="font-weight: 800; font-size: 44px; line-height: 1.05; color: #1F6F54">{{rank}}</div>
-          </div>
-        </div>
-        <div style="display: flex; height: 10px; border-radius: 999px; overflow: hidden; gap: 2px">
-          <div style="width: 90.8%; background: #2F6FEB"></div>
-          <div style="width: 4.5%; background: #E58A1F"></div>
-          <div style="width: 4.7%; background: #D93F1F"></div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 14px; background: #F3F6F2">
-          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="#B8860B"><path d="M3 18 2 7l5 4 5-7 5 7 5-4-1 11H3z"></path></svg>
-          <div style="flex-grow: 1; font-size: 14px; color: #4D5E55">Roi de Schiltigheim · <strong style="color: #14231D">Julien M.</strong></div>
-          <div style="font-weight: 800; font-size: 15px">68,4 km²</div>
-        </div>
-        <button style="display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; border-radius: 999px; border: 0; background: #1F6F54; color: #FFFFFF; font-family: 'Figtree', sans-serif; font-weight: 800; font-size: 17px; cursor: pointer">
-          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"></path></svg>Planifier une sortie</button>
-      </section>
-
-      <section style="padding: 20px; border-radius: 22px; background: #FFFFFF; box-shadow: 0 2px 12px rgba(20,35,29,0.08); display: flex; flex-direction: column; gap: 12px">
-        <div style="display: flex; align-items: baseline; justify-content: space-between">
-          <h2 style="margin: 0; font-weight: 800; font-size: 19px">À défendre</h2>
-          <div style="font-size: 13px; font-weight: 600; color: #4D5E55">3 zones · 1,9 km²</div>
-        </div>
-        <sc-for list="{{zones}}" as="z" hint-placeholder-count="3">
-          <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; background: #F3F6F2">
-            <div style="min-width: 44px; height: 44px; border-radius: 50%; background: {{z.color}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0">{{z.left}}</div>
-            <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0">
-              <div style="font-weight: 700; font-size: 15px">{{z.name}}</div>
-              <div style="font-size: 12px; color: #4D5E55">{{z.area}} · passage il y a {{z.since}}</div>
-            </div>
-            <button style="flex-shrink: 0; min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1.5px solid #14231D; background: #FFFFFF; color: #14231D; font-family: 'Figtree', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer">Repasser</button>
-          </div>
-        </sc-for>
-      </section>
-
-      <a href="connexions.html" style="display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-radius: 22px; background: #14231D; color: #FFFFFF; text-decoration: none">
-        <div style="width: 44px; height: 44px; border-radius: 12px; background: #1F6F54; display: flex; align-items: center; justify-content: center; flex-shrink: 0">
-          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7H6a4 4 0 0 0 0 8h3M15 7h3a4 4 0 0 1 0 8h-3M8 11h8"></path></svg>
-        </div>
-        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px">
-          <div style="font-weight: 800; font-size: 15px">Dernière sortie importée de ton Wahoo</div>
-          <div style="font-size: 13px; color: #B9C6BE">Tour du Kochersberg · +18,4 km² · il y a 2 h</div>
-        </div>
-        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"></path></svg>
-      </a>
-    </aside>
-  </main>
+    <form id="authForm" novalidate>
+      <label for="em">E-mail</label><input id="em" type="email" autocomplete="email" required>
+      <label for="pw">Mot de passe (8 caractères minimum)</label><input id="pw" type="password" autocomplete="current-password" minlength="8" required>
+      <div style="margin-top:16px"><button class="btn" id="authGo" type="submit" style="width:100%">Se connecter</button></div>
+    </form>
+    <div id="authMsg"></div>
+  </div>
 </div>
-</template>
+
+<div id="onb" style="position:fixed;inset:0;z-index:1900;background:var(--bg);display:none;align-items:center;justify-content:center;padding:20px">
+  <div class="card" style="width:100%;max-width:440px">
+    <h1 style="font-size:28px">Bienvenue !</h1>
+    <p class="sub">Choisis le nom qui apparaîtra sur la carte et dans les classements.</p>
+    <form id="onbForm" novalidate>
+      <label for="ps">Pseudo (3 à 24 caractères)</label><input id="ps" type="text" maxlength="24" required>
+      <label for="cm">Commune (facultatif)</label><input id="cm" type="text" maxlength="60" placeholder="Schiltigheim">
+      <div style="margin-top:16px"><button class="btn" type="submit" style="width:100%">Commencer</button></div>
+    </form>
+    <div id="onbMsg"></div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">Ride <b>&amp;</b> Conquer</div>
+  <nav id="nav">
+    <button data-v="carte" class="on">Carte</button>
+    <button data-v="classement">Classements</button>
+    <button data-v="clubs">Clubs</button>
+    <button data-v="importer">Importer une sortie</button>
+    <a href="connexions.html">Connexions</a>
+  </nav>
+  <div class="me"><span id="who"></span><button class="btn alt sm" id="logout" style="background:none;color:#fff;border-color:#4D5E55">Quitter</button><div class="av" id="av">?</div></div>
+</header>
+
+<main>
+  <section class="view on" id="v-carte">
+    <div class="row">
+      <div id="mapwrap">
+        <div id="map"></div>
+        <div class="ctl">
+          <div class="seg" id="segMap"><button data-m="solo" class="on">Solo</button><button data-m="club">Club</button></div>
+          <div class="chips" id="chipsDisc"><button class="chip on" data-d="route">Route</button><button class="chip" data-d="gravel">Gravel</button><button class="chip" data-d="vtt">VTT</button></div>
+        </div>
+        <div class="hint" id="mapHint" style="display:none"></div>
+      </div>
+      <aside class="side">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-end">
+            <div><div style="font-size:13px;font-weight:600;color:var(--mut)" id="stLabel">Territoire détenu</div><div class="big"><span id="stKm">0</span> <small>km²</small></div></div>
+            <div style="text-align:right"><div style="font-size:13px;font-weight:600;color:var(--mut)">Rang</div><div class="big" style="color:var(--green)" id="stRank">–</div></div>
+          </div>
+          <div class="legend"><span><i style="background:rgba(47,111,235,.6)"></i>À toi</span><span><i style="background:rgba(232,120,90,.6)"></i>Rivaux</span><span><i style="background:rgba(47,111,235,.2);border:1px dashed var(--blue)"></i>Pâlit</span></div>
+          <div style="margin-top:16px"><button class="btn" style="width:100%" data-go="importer">Importer une sortie</button></div>
+        </div>
+        <div class="card">
+          <h2>À défendre</h2>
+          <div class="list" id="defend"><div class="item"><div class="grow"><small>Chargement…</small></div></div></div>
+          <p style="font-size:13px;color:var(--mut);margin:10px 0 0">Une maille sans passage pendant 3 semaines retombe dans le domaine public.</p>
+        </div>
+        <div class="card">
+          <h2>Dernières sorties</h2>
+          <div class="list" id="rides"></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="view" id="v-classement">
+    <h1>Classements</h1>
+    <p class="sub">Les mailles encore vives (passage de moins de 3 semaines) comptent. Chaque maille fait environ 100 m de côté.</p>
+    <div class="chips" style="margin-bottom:14px">
+      <div class="seg" id="segRank" style="box-shadow:none"><button data-m="solo" class="on">Solo</button><button data-m="club">Club</button></div>
+      <div id="chipsRank" class="chips"><button class="chip on" data-d="route">Route</button><button class="chip" data-d="gravel">Gravel</button><button class="chip" data-d="vtt">VTT</button></div>
+    </div>
+    <div class="card"><table><thead><tr><th>#</th><th>Nom</th><th class="num">Mailles</th><th class="num">km²</th></tr></thead><tbody id="rankBody"></tbody></table><div id="rankEmpty" class="msg" style="display:none">Personne n'a encore de territoire ici. Importe une sortie pour ouvrir le classement.</div></div>
+  </section>
+
+  <section class="view" id="v-clubs">
+    <h1>Clubs</h1>
+    <p class="sub">Une sortie faite pour un club ne compte que pour le club. Une sortie solo ne compte que pour toi.</p>
+    <div class="row">
+      <div class="card" style="flex:1 1 380px"><h2>Tous les clubs</h2><div class="list" id="clubList"></div></div>
+      <div class="card" style="flex:1 1 320px;max-width:440px">
+        <h2>Créer un club</h2>
+        <form id="clubForm" novalidate>
+          <label for="cn">Nom (3 à 40 caractères)</label><input id="cn" type="text" maxlength="40" required>
+          <label for="cc">Commune (facultatif)</label><input id="cc" type="text" maxlength="60">
+          <div style="margin-top:14px"><button class="btn" type="submit">Créer</button></div>
+        </form>
+        <div id="clubMsg"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-importer">
+    <h1>Importer une sortie</h1>
+    <p class="sub">Dépose un fichier GPX exporté de ton compteur. Les connexions automatiques (Wahoo, Hammerhead, COROS, Garmin) arrivent ensuite.</p>
+    <div class="row">
+      <div class="card" style="flex:1 1 420px;max-width:640px">
+        <div class="drop"><input id="file" type="file" accept=".gpx,application/gpx+xml,text/xml" style="display:none"><button class="btn dark" id="pick" type="button">Choisir un fichier GPX</button><div id="fname" style="margin-top:10px;color:var(--mut);font-size:14px">Aucun fichier</div></div>
+        <div id="prev" style="display:none">
+          <label for="ttl">Titre</label><input id="ttl" type="text" maxlength="120">
+          <label>Discipline</label>
+          <div class="chips" id="chipsImp"><button class="chip on" data-d="route" type="button">Route</button><button class="chip" data-d="gravel" type="button">Gravel</button><button class="chip" data-d="vtt" type="button">VTT</button></div>
+          <label for="forWho">Compte pour</label><select id="forWho"></select>
+          <div class="stat" id="statBox"></div>
+          <button class="btn" id="send" type="button">Conquérir</button>
+        </div>
+        <div id="impMsg"></div>
+      </div>
+      <div class="card" style="flex:1 1 300px;max-width:440px">
+        <h2>Règles</h2>
+        <ul style="margin:0;padding-left:20px;line-height:1.6;color:var(--mut)">
+          <li>Chaque maille traversée est à toi (ou à ton club).</li>
+          <li>Une boucle fermée prend aussi son intérieur.</li>
+          <li>Sans passage pendant 3 semaines, la maille est libérée.</li>
+          <li>Une même sortie importée deux fois ne compte qu'une fois.</li>
+          <li>Les traces trop rapides (plus de 55 km/h de moyenne) sont refusées.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
+const SB_URL='https://rynbzhuxwvfvblgwnhkk.supabase.co';
+const SB_KEY='sb_publishable_GbN1xbHaJGwiIBm_yuV2uA_ADmRDqau';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+const S=150;                 // taille d'une maille en mètres Web Mercator (~100 m réels vers 48°N)
+const TTL=21;                // jours avant qu'une maille soit libérée
+const KM2=0.01;              // km² par maille
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const SM=L.Projection.SphericalMercator;
+const DISC={route:'Route',gravel:'Gravel',vtt:'VTT'};
+const PAL=['232,120,90','222,178,60','150,110,200','46,160,130','120,140,160'];
+const st={user:null,profile:null,view:'carte',map:'solo',disc:'route',rank:{m:'solo',d:'route'},imp:null,clubs:[],myClubs:[],names:{}};
+const daysAgo=n=>new Date(Date.now()-n*864e5).toISOString();
+function msg(el,text,kind){el.innerHTML=text?`<div class="msg ${kind||''}">${esc(text)}</div>`:'';}
 
-class DCLogic{constructor(){this.state={};}setState(p){this.state=Object.assign({},this.state,p);this.__render&&this.__render();}}
-function __lookup(path,scope){var parts=path.trim().split('.');var v=scope;for(var i=0;i<parts.length;i++){if(v==null)return undefined;v=v[parts[i]];}return v;}
-function __interp(str,scope){return str.replace(/\{\{\s*([^}]+?)\s*\}\}/g,function(_,p){var v=__lookup(p,scope);return v==null?'':String(v);});}
-function __renderNode(node,scope,out){
-  if(node.nodeType===3){out.appendChild(document.createTextNode(__interp(node.nodeValue,scope)));return;}
-  if(node.nodeType!==1)return;
-  var tag=node.localName;
-  if(tag==='sc-for'){var list=__lookup(node.getAttribute('list').replace(/^\{\{|\}\}$/g,''),scope)||[];var as=node.getAttribute('as');
-    list.forEach(function(item){var s=Object.assign({},scope);s[as]=item;for(var c=node.firstChild;c;c=c.nextSibling)__renderNode(c,s,out);});return;}
-  if(tag==='sc-if'){var v=__lookup(node.getAttribute('value').replace(/^\{\{|\}\}$/g,''),scope);if(v){for(var c=node.firstChild;c;c=c.nextSibling)__renderNode(c,scope,out);}return;}
-  var el=node.cloneNode(false);
-  for(var i=0;i<node.attributes.length;i++){var a=node.attributes[i];
-    if(/^on/i.test(a.name)&&/^\{\{.*\}\}$/.test(a.value.trim())){el.removeAttribute(a.name);var fn=__lookup(a.value.trim().replace(/^\{\{|\}\}$/g,''),scope);if(typeof fn==='function')el.addEventListener(a.name.slice(2).toLowerCase(),fn);}
-    else if(a.value.indexOf('{{')>=0){el.setAttribute(a.name,__interp(a.value,scope));}}
-  for(var c=node.firstChild;c;c=c.nextSibling)__renderNode(c,scope,el);
-  out.appendChild(el);
+/* ---------- Authentification ---------- */
+let authMode='in';
+$('#authTabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;authMode=b.dataset.m;
+  $$('#authTabs button').forEach(x=>x.classList.toggle('on',x===b));
+  $('#authGo').textContent=authMode==='in'?'Se connecter':'Créer mon compte';
+  $('#pw').autocomplete=authMode==='in'?'current-password':'new-password';msg($('#authMsg'),'');});
+$('#authForm').addEventListener('submit',async e=>{e.preventDefault();
+  const email=$('#em').value.trim(),password=$('#pw').value;
+  if(!email||password.length<8){msg($('#authMsg'),'Renseigne un e-mail et un mot de passe de 8 caractères minimum.','err');return;}
+  $('#authGo').disabled=true;
+  try{
+    if(authMode==='in'){const {error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;}
+    else{const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});if(error)throw error;
+      if(!data.session)msg($('#authMsg'),'Compte créé. Ouvre l’e-mail de confirmation que tu viens de recevoir, puis reviens te connecter.','ok');}
+  }catch(err){
+    const m=/Invalid login/i.test(err.message)?'E-mail ou mot de passe incorrect.':/already registered/i.test(err.message)?'Un compte existe déjà avec cet e-mail.':/Email not confirmed/i.test(err.message)?'Confirme d’abord ton e-mail (lien reçu par courrier).':err.message;
+    msg($('#authMsg'),m,'err');}
+  $('#authGo').disabled=false;});
+$('#logout').addEventListener('click',()=>sb.auth.signOut());
+
+sb.auth.onAuthStateChange((_e,session)=>{setTimeout(()=>onSession(session),0);});
+async function onSession(session){
+  st.user=session?session.user:null;
+  if(!st.user){$('#auth').style.display='flex';$('#onb').style.display='none';$('#who').textContent='';$('#av').textContent='?';return;}
+  $('#auth').style.display='none';
+  const {data,error}=await sb.from('rc_profiles').select('*').eq('id',st.user.id).maybeSingle();
+  if(error){alert('Erreur de chargement du profil : '+error.message);return;}
+  if(!data){$('#onb').style.display='flex';return;}
+  st.profile=data;$('#onb').style.display='none';
+  $('#who').textContent=data.pseudo;$('#av').textContent=data.pseudo.slice(0,2).toUpperCase();
+  await loadMyClubs();show(st.view);
 }
-function __mount(Cls){var inst=new Cls();var tpl=document.getElementById('tpl');var root=document.getElementById('app');
-  inst.__render=function(){var vals=inst.renderVals();var frag=document.createDocumentFragment();for(var c=tpl.content.firstChild;c;c=c.nextSibling)__renderNode(c,vals,frag);root.replaceChildren(frag);};
-  inst.__render();}
+$('#onbForm').addEventListener('submit',async e=>{e.preventDefault();
+  const pseudo=$('#ps').value.trim(),commune=$('#cm').value.trim()||null;
+  if(pseudo.length<3){msg($('#onbMsg'),'Le pseudo doit faire au moins 3 caractères.','err');return;}
+  const {error}=await sb.from('rc_profiles').insert({id:st.user.id,pseudo,commune});
+  if(error){msg($('#onbMsg'),/duplicate|unique/i.test(error.message)?'Ce pseudo est déjà pris.':error.message,'err');return;}
+  onSession({user:st.user});});
 
+/* ---------- Navigation ---------- */
+function show(v){st.view=v;
+  $$('.view').forEach(x=>x.classList.toggle('on',x.id==='v-'+v));
+  $$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  if(v==='carte'){initMap();setTimeout(()=>{map.invalidateSize();refreshMap();},50);}
+  if(v==='classement')loadRank();
+  if(v==='clubs')loadClubs();
+  if(v==='importer')fillForWho();
+}
+$('#nav').addEventListener('click',e=>{const b=e.target.closest('button[data-v]');if(b)show(b.dataset.v);});
+document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)show(g.dataset.go);});
 
-class Component extends DCLogic {
-  renderVals() {
-    var self = this;
-    var st = this.state || {};
-    var mode = st.mode || 'solo';
-    var disc = st.disc || 0;
-    var solo = mode === 'solo';
-    var MINE = ['rgba(47,111,235,0.6)', 'rgba(47,111,235,0.2)'];
-    var RIV = ['rgba(232,120,90,0.42)', 'rgba(222,178,60,0.5)', 'rgba(150,110,200,0.38)', 'rgba(46,160,130,0.42)', 'rgba(120,140,160,0.42)'];
-    var h = function (x, y) { var n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return n - Math.floor(n); };
-    var mine = [[20, 12, 6], [25, 10, 4], [16, 15, 4]];
-    var riv = [[5, 5, 6, 0], [34, 5, 6, 1], [6, 18, 5, 2], [36, 16, 5, 3], [26, 22, 6, 4], [12, 24, 4, 1], [40, 23, 4, 0], [22, 3, 4, 3], [8, 11, 4, 3], [31, 12, 4, 2], [14, 3, 3, 4]];
-    var all = [];
-    mine.forEach(function (m) { all.push({ x: solo ? m[0] : 41 - m[0], y: solo ? m[1] : m[1] + (m[0] * 3) % 5, r: solo ? m[2] : m[2] * 1.3, o: -1 }); });
-    riv.forEach(function (m) { all.push({ x: solo ? m[0] : 41 - m[0], y: solo ? m[1] : m[1] + (m[0] * 3) % 5, r: m[2], o: m[3] }); });
-    var cells = [];
-    for (var y = 0; y < 27; y++) {
-      for (var x = 0; x < 42; x++) {
-        var best = 9, bo = null;
-        all.forEach(function (c) {
-          var d = ((x - c.x) * (x - c.x) + (y - c.y) * (y - c.y)) / (c.r * c.r) + h(x + (solo ? 0 : 7), y) * 0.35;
-          if (d < best) { best = d; bo = c.o; }
-        });
-        var bd = 'rgba(255,255,255,0.4)';
-        if (best > 1.15) { cells.push({ bg: 'transparent', bd: 'rgba(255,255,255,0.1)' }); }
-        else if (bo === -1) { cells.push({ bg: h(x * 3, y * 5) > 0.82 ? MINE[1] : MINE[0], bd: bd }); }
-        else { cells.push({ bg: RIV[bo], bd: bd }); }
-      }
-    }
-    var names = solo ? ['Léa W.', '★ Julien M.', 'Sophie K.', 'Marc H.'] : ['VC Hœnheim', '★ Les Vagabonds', 'Gravel Kocher', 'Team Bischheim'];
-    var pills = [];
-    [3, 4, 5, 6].forEach(function (idx, k) {
-      var c = all[idx];
-      var top = c.y * 26 + 13 - 14, left = c.x * 26 + 13 - 45;
-      if (top > 80 && top < 590 && left > 10 && left < 1000) { pills.push({ name: names[k], left: left, top: top }); }
-    });
-    var me = all[0];
-    var discs = ['Route', 'Gravel', 'VTT'].map(function (l, i) {
-      return { label: l, bg: i === disc ? '#14231D' : '#FFFFFF', fg: i === disc ? '#FFFFFF' : '#14231D', pick: function () { self.setState({ disc: i }); } };
-    });
-    return {
-      cells: cells, pills: pills, discs: discs, isSolo: solo,
-      meLeft: me.x * 26 + 13 - 8, meTop: me.y * 26 + 13 - 8,
-      total: solo ? '42,6' : '86,3',
-      label: solo ? 'Territoire détenu' : 'Les Vélos du Mercredi',
-      zone: solo ? 'Schiltigheim' : 'Bas-Rhin',
-      rank: solo ? '3e' : '2e',
-      mineLabel: solo ? 'À toi' : 'Ton club',
-      soloBg: solo ? '#1F6F54' : 'transparent', soloFg: solo ? '#FFFFFF' : '#14231D',
-      clubBg: solo ? 'transparent' : '#1F6F54', clubFg: solo ? '#14231D' : '#FFFFFF',
-      pickSolo: function () { self.setState({ mode: 'solo' }); },
-      pickClub: function () { self.setState({ mode: 'club' }); },
-      zones: [
-        { name: 'Reichstett, berges du canal', area: '0,6 km²', since: '19 j', left: 'J-2', color: '#D93F1F' },
-        { name: 'Vendenheim, route de Brumath', area: '0,8 km²', since: '17 j', left: 'J-4', color: '#C26F12' },
-        { name: 'Mittelhausbergen', area: '0,5 km²', since: '15 j', left: 'J-6', color: '#8F7508' }
-      ]
-    };
+/* ---------- Carte ---------- */
+let map=null,cellLayer=null,cellRenderer=null,loadSeq=0;
+function initMap(){
+  if(map)return;
+  map=L.map('map',{center:[48.62,7.76],zoom:12,minZoom:5,zoomControl:false});
+  L.control.zoom({position:'bottomright'}).addTo(map);
+  L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,
+    attribution:'Données © contributeurs <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, SRTM | Rendu © <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'}).addTo(map);
+  cellRenderer=L.canvas({padding:.5});cellLayer=L.layerGroup().addTo(map);
+  map.on('moveend',refreshMap);
+  if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>map.setView([p.coords.latitude,p.coords.longitude],13),()=>{},{timeout:5000});
+}
+$('#segMap').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;st.map=b.dataset.m;
+  $$('#segMap button').forEach(x=>x.classList.toggle('on',x===b));refreshMap();});
+$('#chipsDisc').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;st.disc=b.dataset.d;
+  $$('#chipsDisc button').forEach(x=>x.classList.toggle('on',x===b));refreshMap();});
+
+function cellRect(x,y){const a=SM.unproject(L.point(x*S,y*S)),b=SM.unproject(L.point((x+1)*S,(y+1)*S));return [[a.lat,a.lng],[b.lat,b.lng]];}
+function hue(id){let h=0;for(const c of id)h=(h*31+c.charCodeAt(0))>>>0;return PAL[h%PAL.length];}
+function mineIds(){return st.map==='solo'?new Set([st.user.id]):new Set(st.myClubs.map(c=>c.id));}
+
+async function refreshMap(){
+  if(!map||!st.user)return;
+  const seq=++loadSeq,hint=$('#mapHint');
+  loadStats();
+  if(map.getZoom()<11){cellLayer.clearLayers();hint.style.display='block';hint.textContent='Zoome pour voir les mailles.';return;}
+  hint.style.display='none';
+  const b=map.getBounds(),p1=SM.project(b.getSouthWest()),p2=SM.project(b.getNorthEast());
+  const x1=Math.floor(p1.x/S),x2=Math.floor(p2.x/S),y1=Math.floor(p1.y/S),y2=Math.floor(p2.y/S);
+  const rows=[];
+  for(let from=0;from<8000;from+=1000){
+    const {data,error}=await sb.from('rc_cells').select('x,y,owner_id,last_pass').eq('map',st.map).eq('discipline',st.disc)
+      .gte('x',x1).lte('x',x2).gte('y',y1).lte('y',y2).gt('last_pass',daysAgo(TTL)).range(from,from+999);
+    if(seq!==loadSeq)return;
+    if(error){hint.style.display='block';hint.textContent='Erreur : '+error.message;return;}
+    rows.push(...data);if(data.length<1000)break;
   }
+  cellLayer.clearLayers();
+  const mine=mineIds(),now=Date.now();
+  rows.forEach(r=>{
+    const age=(now-new Date(r.last_pass))/864e5,isMine=mine.has(r.owner_id),fade=age>14,col=isMine?'47,111,235':hue(r.owner_id);
+    const rect=L.rectangle(cellRect(r.x,r.y),{renderer:cellRenderer,stroke:true,color:'#fff',weight:.6,opacity:.5,fillColor:'rgb('+col+')',fillOpacity:fade?.2:(isMine?.6:.45),interactive:true});
+    rect.on('click',()=>openCell(r,rect));cellLayer.addLayer(rect);});
+  if(rows.length>=8000){hint.style.display='block';hint.textContent='Zone très dense : zoome pour tout afficher.';}
+}
+async function nameOf(id){
+  if(st.names[id])return st.names[id];
+  const [p,c]=await Promise.all([sb.from('rc_profiles').select('pseudo').eq('id',id).maybeSingle(),sb.from('rc_clubs').select('name').eq('id',id).maybeSingle()]);
+  return st.names[id]=(p.data&&p.data.pseudo)||(c.data&&c.data.name)||'Inconnu';
+}
+async function openCell(r,rect){
+  const n=await nameOf(r.owner_id),left=Math.max(0,Math.ceil(TTL-(Date.now()-new Date(r.last_pass))/864e5));
+  rect.bindPopup(`<b>${esc(n)}</b><br>Libérée dans ${left} j`).openPopup();
 }
 
-__mount(Component);
+async function loadStats(){
+  if(!st.user)return;
+  const solo=st.map==='solo',ids=[...mineIds()];
+  $('#stLabel').textContent=solo?'Territoire détenu':'Territoire de tes clubs';
+  const q=(extra)=>{let r=sb.from('rc_cells').select('*',{count:'exact',head:true}).eq('map',st.map).eq('discipline',st.disc).in('owner_id',ids.length?ids:['00000000-0000-0000-0000-000000000000']).gt('last_pass',daysAgo(TTL));return extra?extra(r):r;};
+  const [all,soon,mid]=await Promise.all([q(),q(r=>r.lte('last_pass',daysAgo(14))),q(r=>r.gt('last_pass',daysAgo(14)).lte('last_pass',daysAgo(7)))]);
+  const n=all.count||0;$('#stKm').textContent=(n*KM2).toFixed(1).replace('.',',');
+  const {data:rk}=await sb.rpc('rc_ranking',{p_map:st.map,p_discipline:st.disc});
+  const pos=(rk||[]).find(r=>ids.includes(r.owner));$('#stRank').textContent=pos?pos.pos+(pos.pos==1?'er':'e'):'–';
+  const d=[[soon.count||0,'Dans moins de 7 jours','#D93F1F'],[mid.count||0,'Dans 7 à 14 jours','#C26F12']];
+  $('#defend').innerHTML=n?d.map(x=>`<div class="item"><div style="width:14px;height:14px;border-radius:4px;background:${x[2]}"></div><div class="grow"><b>${x[0]} mailles</b><small>${x[1]} (${(x[0]*KM2).toFixed(2).replace('.',',')} km²)</small></div></div>`).join(''):'<div class="item"><div class="grow"><small>Tu n’as pas encore de territoire. Importe ta première sortie.</small></div></div>';
+  const {data:rd}=await sb.from('rc_rides').select('title,started_at,distance_km,new_cells,discipline,club_id').order('started_at',{ascending:false}).limit(5);
+  $('#rides').innerHTML=(rd&&rd.length)?rd.map(r=>`<div class="item"><div class="grow"><b>${esc(r.title||'Sortie')}</b><small>${new Date(r.started_at).toLocaleDateString('fr-FR')} · ${r.distance_km??'?'} km · ${DISC[r.discipline]}${r.club_id?' · club':''}</small></div><b>+${(r.new_cells*KM2).toFixed(2).replace('.',',')} km²</b></div>`).join(''):'<div class="item"><div class="grow"><small>Aucune sortie pour l’instant.</small></div></div>';
+}
+
+/* ---------- Classements ---------- */
+$('#segRank').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;st.rank.m=b.dataset.m;$$('#segRank button').forEach(x=>x.classList.toggle('on',x===b));loadRank();});
+$('#chipsRank').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;st.rank.d=b.dataset.d;$$('#chipsRank button').forEach(x=>x.classList.toggle('on',x===b));loadRank();});
+async function loadRank(){
+  const {data,error}=await sb.rpc('rc_ranking',{p_map:st.rank.m,p_discipline:st.rank.d});
+  const mine=st.rank.m==='solo'?new Set([st.user.id]):new Set(st.myClubs.map(c=>c.id));
+  $('#rankBody').innerHTML=(data||[]).map(r=>`<tr class="${mine.has(r.owner)?'me-row':''}"><td>${r.pos}</td><td>${esc(r.label)}</td><td class="num">${r.cells}</td><td class="num">${(r.cells*KM2).toFixed(2).replace('.',',')}</td></tr>`).join('');
+  $('#rankEmpty').style.display=(data&&data.length)?'none':'block';
+  if(error)$('#rankEmpty').textContent='Erreur : '+error.message;
+}
+
+/* ---------- Clubs ---------- */
+async function loadMyClubs(){
+  const {data}=await sb.from('rc_club_members').select('club_id,rc_clubs(id,name)').eq('user_id',st.user.id);
+  st.myClubs=(data||[]).map(m=>m.rc_clubs).filter(Boolean);
+}
+async function loadClubs(){
+  const [{data:clubs},{data:mem}]=await Promise.all([sb.from('rc_clubs').select('id,name,commune,owner_id').order('name'),sb.from('rc_club_members').select('club_id')]);
+  const count={};(mem||[]).forEach(m=>count[m.club_id]=(count[m.club_id]||0)+1);
+  const mine=new Set(st.myClubs.map(c=>c.id));
+  $('#clubList').innerHTML=(clubs&&clubs.length)?clubs.map(c=>`<div class="item"><div class="grow"><b>${esc(c.name)}</b><small>${esc(c.commune||'')}${c.commune?' · ':''}${count[c.id]||0} membre${(count[c.id]||0)>1?'s':''}</small></div><button class="btn sm ${mine.has(c.id)?'alt':''}" data-club="${c.id}" data-in="${mine.has(c.id)?1:0}">${mine.has(c.id)?'Quitter':'Rejoindre'}</button></div>`).join(''):'<div class="item"><div class="grow"><small>Aucun club pour l’instant. Crée le premier !</small></div></div>';
+}
+$('#clubList').addEventListener('click',async e=>{const b=e.target.closest('button[data-club]');if(!b)return;
+  b.disabled=true;
+  const q=b.dataset.in==='1'?sb.from('rc_club_members').delete().eq('club_id',b.dataset.club).eq('user_id',st.user.id):sb.from('rc_club_members').insert({club_id:b.dataset.club,user_id:st.user.id});
+  const {error}=await q;if(error)alert(error.message);await loadMyClubs();loadClubs();});
+$('#clubForm').addEventListener('submit',async e=>{e.preventDefault();
+  const name=$('#cn').value.trim(),commune=$('#cc').value.trim()||null;
+  if(name.length<3){msg($('#clubMsg'),'Le nom doit faire au moins 3 caractères.','err');return;}
+  const {data,error}=await sb.from('rc_clubs').insert({name,commune,owner_id:st.user.id}).select().single();
+  if(error){msg($('#clubMsg'),/duplicate|unique/i.test(error.message)?'Ce nom de club existe déjà.':error.message,'err');return;}
+  await sb.from('rc_club_members').insert({club_id:data.id,user_id:st.user.id,role:'owner'});
+  $('#cn').value='';$('#cc').value='';msg($('#clubMsg'),'Club créé : tu en es le premier membre.','ok');await loadMyClubs();loadClubs();});
+
+/* ---------- Import GPX ---------- */
+$('#pick').addEventListener('click',()=>$('#file').click());
+$('#chipsImp').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$$('#chipsImp button').forEach(x=>x.classList.toggle('on',x===b));});
+function fillForWho(){$('#forWho').innerHTML='<option value="">Moi (carte solo)</option>'+st.myClubs.map(c=>`<option value="${c.id}">Club : ${esc(c.name)}</option>`).join('');}
+const hav=(a,b)=>{const R=6371,r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lon-a.lon)*r,x=Math.sin(dl/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(x));};
+
+function analyse(text){
+  const doc=new DOMParser().parseFromString(text,'application/xml');
+  if(doc.getElementsByTagName('parsererror').length)throw new Error('Ce fichier n’est pas un GPX lisible.');
+  let nodes=[...doc.getElementsByTagName('trkpt')];if(!nodes.length)nodes=[...doc.getElementsByTagName('rtept')];
+  const pts=nodes.map(n=>({lat:+n.getAttribute('lat'),lon:+n.getAttribute('lon'),t:n.getElementsByTagName('time')[0]?Date.parse(n.getElementsByTagName('time')[0].textContent):null})).filter(p=>isFinite(p.lat)&&isFinite(p.lon));
+  if(pts.length<10)throw new Error('Trace trop courte : il faut au moins 10 points GPS.');
+  let km=0;for(let i=1;i<pts.length;i++){const d=hav(pts[i-1],pts[i]);if(d>3)throw new Error('Trace avec un saut de plus de 3 km : fichier refusé.');km+=d;}
+  const t0=pts[0].t,t1=pts[pts.length-1].t,hours=(t0&&t1&&t1>t0)?(t1-t0)/36e5:null;
+  if(hours&&km/hours>55)throw new Error('Vitesse moyenne de '+Math.round(km/hours)+' km/h : cette trace n’est pas une sortie à vélo.');
+  const name=(doc.getElementsByTagName('name')[0]||{}).textContent||'';
+  const cp=pts.map(p=>{const m=SM.project(L.latLng(p.lat,p.lon));return [m.x/S,m.y/S];});
+  const set=new Set(),add=(x,y)=>set.add(Math.floor(x)+','+Math.floor(y));
+  for(let i=0;i<cp.length;i++){
+    add(cp[i][0],cp[i][1]);
+    if(i){const dx=cp[i][0]-cp[i-1][0],dy=cp[i][1]-cp[i-1][1],n=Math.ceil(Math.hypot(dx,dy)/.4);for(let k=1;k<n;k++)add(cp[i-1][0]+dx*k/n,cp[i-1][1]+dy*k/n);}
+  }
+  const traced=set.size;let loop=false;
+  const dEnd=Math.hypot(cp[0][0]-cp[cp.length-1][0],cp[0][1]-cp[cp.length-1][1]);
+  if(dEnd<=3&&cp.length>=20){
+    const step=Math.max(1,Math.floor(cp.length/300)),poly=cp.filter((_,i)=>i%step===0);
+    let minx=1e18,maxx=-1e18,miny=1e18,maxy=-1e18;poly.forEach(p=>{minx=Math.min(minx,p[0]);maxx=Math.max(maxx,p[0]);miny=Math.min(miny,p[1]);maxy=Math.max(maxy,p[1]);});
+    const w=Math.ceil(maxx)-Math.floor(minx),h=Math.ceil(maxy)-Math.floor(miny);
+    if(w<=250&&h<=250){
+      const fill=[];
+      for(let x=Math.floor(minx);x<Math.ceil(maxx);x++)for(let y=Math.floor(miny);y<Math.ceil(maxy);y++){
+        const px=x+.5,py=y+.5;let ins=false;
+        for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];if((a[1]>py)!==(b[1]>py)&&px<(b[0]-a[0])*(py-a[1])/(b[1]-a[1])+a[0])ins=!ins;}
+        if(ins)fill.push(x+','+y);}
+      if(fill.length&&fill.length+set.size<=40000){fill.forEach(k=>set.add(k));loop=true;}
+    }
+  }
+  const cells=[...set].map(k=>k.split(',').map(Number));
+  const started=t0?new Date(t0):new Date();
+  const fingerprint=(t0?new Date(t0).toISOString():'sans-heure')+'|'+km.toFixed(2)+'|'+pts[0].lat.toFixed(4)+','+pts[0].lon.toFixed(4);
+  return {name,pts,km,hours,cells,traced,loop,started,fingerprint,bounds:L.latLngBounds(pts.map(p=>[p.lat,p.lon]))};
+}
+$('#file').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;$('#fname').textContent=f.name;st.imp=null;$('#prev').style.display='none';msg($('#impMsg'),'');
+  try{
+    const a=analyse(await f.text());a.file=f.name;st.imp=a;
+    $('#ttl').value=a.name||f.name.replace(/\.gpx$/i,'');
+    $('#statBox').innerHTML=`<div><b>${a.km.toFixed(1).replace('.',',')} km</b><span>Distance</span></div><div><b>${a.cells.length}</b><span>Mailles touchées</span></div><div><b>${(a.cells.length*KM2).toFixed(2).replace('.',',')} km²</b><span>Surface</span></div><div><b>${a.loop?'Oui':'Non'}</b><span>Boucle (intérieur pris)</span></div>`;
+    $('#prev').style.display='block';fillForWho();
+  }catch(err){msg($('#impMsg'),err.message,'err');}
+});
+$('#send').addEventListener('click',async()=>{
+  const a=st.imp;if(!a)return;$('#send').disabled=true;
+  const disc=($('#chipsImp .on')||{dataset:{d:'route'}}).dataset.d,club=$('#forWho').value||null;
+  const {data,error}=await sb.rpc('rc_submit_ride',{p_title:$('#ttl').value.trim()||'Sortie',p_started_at:a.started.toISOString(),p_distance_km:+a.km.toFixed(2),p_discipline:disc,p_club_id:club,p_fingerprint:a.fingerprint,p_cells:a.cells});
+  $('#send').disabled=false;
+  if(error){msg($('#impMsg'),error.message,'err');return;}
+  if(data.duplicate){msg($('#impMsg'),'Cette sortie a déjà été importée : elle ne compte qu’une fois.','err');return;}
+  msg($('#impMsg'),`Sortie enregistrée : ${data.cells} mailles, dont ${data.new_cells} nouvelles pour toi (${(data.new_cells*KM2).toFixed(2).replace('.',',')} km²).`,'ok');
+  st.map=club?'club':'solo';st.disc=disc;
+  $$('#segMap button').forEach(x=>x.classList.toggle('on',x.dataset.m===st.map));$$('#chipsDisc button').forEach(x=>x.classList.toggle('on',x.dataset.d===disc));
+  const b=a.bounds;st.imp=null;$('#prev').style.display='none';$('#file').value='';$('#fname').textContent='Aucun fichier';
+  show('carte');setTimeout(()=>map.fitBounds(b,{maxZoom:14,padding:[40,40]}),120);
+});
+
+/* ---------- Démarrage ---------- */
+sb.auth.getSession().then(({data})=>onSession(data.session));
 </script>
 </body>
 </html>
