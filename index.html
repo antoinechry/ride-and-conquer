@@ -113,6 +113,7 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)
     <button data-v="classement">Classements</button>
     <button data-v="clubs">Clubs</button>
     <button data-v="importer">Importer une sortie</button>
+    <button data-v="intervals">Intervals.icu</button>
     <a href="connexions.html">Connexions</a>
   </nav>
   <div class="me"><span id="who"></span><button class="btn alt sm" id="logout" style="background:none;color:#fff;border-color:#4D5E55">Quitter</button><div class="av" id="av">?</div></div>
@@ -206,6 +207,31 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)
       </div>
     </div>
   </section>
+
+  <section class="view" id="v-intervals">
+    <h1>Intervals.icu</h1>
+    <p class="sub">Relie ton compteur (COROS, Wahoo, Garmin…) à Intervals.icu, puis synchronise tes sorties ici : les mailles sont calculées sans aucun fichier à importer. Les sorties venues de Strava ne sont jamais utilisées.</p>
+    <div class="row">
+      <div class="card" style="flex:1 1 420px;max-width:640px">
+        <div id="icuState" style="font-weight:700;margin-bottom:12px">Chargement…</div>
+        <div class="chips" id="icuSync" style="display:none">
+          <button class="btn" data-days="30" type="button">Synchroniser les 30 derniers jours</button>
+          <button class="btn alt" data-days="90" type="button">90 jours</button>
+        </div>
+        <div id="icuMsg"></div>
+        <div id="icuRes"></div>
+      </div>
+      <div class="card" style="flex:1 1 300px;max-width:440px">
+        <h2 id="icuFormTitle">Connecter mon compte</h2>
+        <p style="font-size:14px;color:var(--mut);line-height:1.5;margin:0 0 6px">Dans Intervals.icu : Réglages → Developer Settings → clé API. L'identifiant athlète ressemble à <code>i12345</code> (laisse 0 pour ton propre compte). La clé est gardée côté serveur et n'est jamais relue par le navigateur.</p>
+        <form id="icuForm" novalidate>
+          <label for="icuAth">Identifiant athlète</label><input id="icuAth" type="text" value="0">
+          <label for="icuKey">Clé API</label><input id="icuKey" type="password" autocomplete="off">
+          <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn" type="submit">Enregistrer</button><button class="btn alt" id="icuOff" type="button" style="display:none">Déconnecter</button></div>
+        </form>
+      </div>
+    </div>
+  </section>
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -273,6 +299,7 @@ function show(v){st.view=v;
   if(v==='classement')loadRank();
   if(v==='clubs')loadClubs();
   if(v==='importer')fillForWho();
+  if(v==='intervals')icuStatus();
 }
 $('#nav').addEventListener('click',e=>{const b=e.target.closest('button[data-v]');if(b)show(b.dataset.v);});
 document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)show(g.dataset.go);});
@@ -445,6 +472,34 @@ $('#send').addEventListener('click',async()=>{
   const b=a.bounds;st.imp=null;$('#prev').style.display='none';$('#file').value='';$('#fname').textContent='Aucun fichier';
   show('carte');setTimeout(()=>map.fitBounds(b,{maxZoom:14,padding:[40,40]}),120);
 });
+
+
+/* ---------- Intervals.icu ---------- */
+async function icuCall(body){
+  const {data,error}=await sb.functions.invoke('rc-intervals-sync',{body});
+  if(error){let m=error.message;try{const j=await error.context.json();if(j&&j.error)m=j.error;}catch(_){ }throw new Error(m);}
+  if(data&&data.error)throw new Error(data.error);return data;
+}
+async function icuStatus(){
+  msg($('#icuMsg'),'');$('#icuRes').innerHTML='';
+  try{const d=await icuCall({action:'status'});
+    $('#icuState').textContent=d.connected?('Connecté'+(d.last_sync?' · dernière synchro le '+new Date(d.last_sync).toLocaleString('fr-FR'):' · pas encore synchronisé')):'Non connecté';
+    $('#icuSync').style.display=d.connected?'flex':'none';$('#icuOff').style.display=d.connected?'inline-block':'none';
+    $('#icuFormTitle').textContent=d.connected?'Changer de clé':'Connecter mon compte';
+  }catch(e){$('#icuState').textContent='Erreur';msg($('#icuMsg'),e.message,'err');}
+}
+$('#icuForm').addEventListener('submit',async e=>{e.preventDefault();
+  try{await icuCall({action:'save',api_key:$('#icuKey').value,athlete_id:$('#icuAth').value});$('#icuKey').value='';await icuStatus();msg($('#icuMsg'),'Intervals.icu est connecté.','ok');}
+  catch(err){msg($('#icuMsg'),err.message,'err');}});
+$('#icuOff').addEventListener('click',async()=>{try{await icuCall({action:'disconnect'});await icuStatus();}catch(err){msg($('#icuMsg'),err.message,'err');}});
+$('#icuSync').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
+  $$('#icuSync button').forEach(x=>x.disabled=true);msg($('#icuMsg'),'Synchronisation en cours… cela peut prendre une minute.');$('#icuRes').innerHTML='';
+  try{const d=await icuCall({action:'sync',days:+b.dataset.days});
+    msg($('#icuMsg'),`${d.found} sorties trouvées · ${d.imported} importées (${d.cells} mailles, ${d.new_cells} nouvelles pour toi, soit ${(d.new_cells*KM2).toFixed(2).replace('.',',')} km²) · ${d.duplicates} déjà connues.`,'ok');
+    if(d.skipped.length)$('#icuRes').innerHTML='<h2 style="margin-top:16px">Ignorées</h2><div class="list">'+d.skipped.map(x=>`<div class="item"><div class="grow"><small>${esc(x)}</small></div></div>`).join('')+'</div>';
+    icuStatus.keep=true;
+  }catch(err){msg($('#icuMsg'),err.message,'err');}
+  $$('#icuSync button').forEach(x=>x.disabled=false);});
 
 /* ---------- Démarrage ---------- */
 sb.auth.getSession().then(({data})=>onSession(data.session));
