@@ -136,13 +136,13 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)
             <div><div style="font-size:13px;font-weight:600;color:var(--mut)" id="stLabel">Territoire détenu</div><div class="big"><span id="stKm">0</span> <small>km²</small></div></div>
             <div style="text-align:right"><div style="font-size:13px;font-weight:600;color:var(--mut)">Rang</div><div class="big" style="color:var(--green)" id="stRank">–</div></div>
           </div>
-          <div class="legend"><span><i style="background:rgba(47,111,235,.6)"></i>À toi</span><span><i style="background:rgba(232,120,90,.6)"></i>Rivaux</span><span><i style="background:rgba(47,111,235,.2);border:1px dashed var(--blue)"></i>Pâlit</span></div>
+          <div class="legend"><span><i style="background:rgba(47,111,235,.6)"></i>À toi</span><span><i style="background:rgba(232,120,90,.6)"></i>Rivaux</span></div>
           <div style="margin-top:16px"><button class="btn" style="width:100%" data-go="importer">Importer une sortie</button></div>
         </div>
         <div class="card">
-          <h2>À défendre</h2>
+          <h2>Mes mailles</h2>
           <div class="list" id="defend"><div class="item"><div class="grow"><small>Chargement…</small></div></div></div>
-          <p style="font-size:13px;color:var(--mut);margin:10px 0 0">Une maille sans passage pendant 3 semaines retombe dans le domaine public.</p>
+          <p style="font-size:13px;color:var(--mut);margin:10px 0 0">Une maille reste à toi tant qu'un autre cycliste ne la reprend pas en la traversant.</p>
         </div>
         <div class="card">
           <h2>Dernières sorties</h2>
@@ -154,7 +154,7 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)
 
   <section class="view" id="v-classement">
     <h1>Classements</h1>
-    <p class="sub">Les mailles encore vives (passage de moins de 3 semaines) comptent. Chaque maille fait environ 100 m de côté.</p>
+    <p class="sub">Chaque maille fait environ 100 m de côté et reste à son détenteur tant qu'un autre ne la reprend pas.</p>
     <div class="chips" style="margin-bottom:14px">
       <div class="seg" id="segRank" style="box-shadow:none"><button data-m="solo" class="on">Solo</button><button data-m="club">Club</button></div>
       <div id="chipsRank" class="chips"><button class="chip on" data-d="route">Route</button><button class="chip" data-d="gravel">Gravel</button><button class="chip" data-d="vtt">VTT</button></div>
@@ -200,7 +200,7 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)
         <ul style="margin:0;padding-left:20px;line-height:1.6;color:var(--mut)">
           <li>Chaque maille traversée est à toi (ou à ton club).</li>
           <li>Une boucle fermée prend aussi son intérieur.</li>
-          <li>Sans passage pendant 3 semaines, la maille est libérée.</li>
+          <li>Une maille reste à toi jusqu'à ce qu'un autre cycliste la traverse.</li>
           <li>Une même sortie importée deux fois ne compte qu'une fois.</li>
           <li>Les traces trop rapides (plus de 55 km/h de moyenne) sont refusées.</li>
         </ul>
@@ -241,7 +241,6 @@ const SB_URL='https://rynbzhuxwvfvblgwnhkk.supabase.co';
 const SB_KEY='sb_publishable_GbN1xbHaJGwiIBm_yuV2uA_ADmRDqau';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const S=150;                 // taille d'une maille en mètres Web Mercator (~100 m réels vers 48°N)
-const TTL=21;                // jours avant qu'une maille soit libérée
 const KM2=0.01;              // km² par maille
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -337,7 +336,7 @@ async function refreshMap(){
   const mine=mineIds(),mineArr=[...mine],now=Date.now(),rows=[];
   hint.style.display='none';
   const page=from=>f===1
-    ?sb.from('rc_cells').select('x,y,owner_id,last_pass').eq('map',st.map).eq('discipline',st.disc).gte('x',x1).lte('x',x2).gte('y',y1).lte('y',y2).gt('last_pass',daysAgo(TTL)).order('x').order('y').range(from,from+999)
+    ?sb.from('rc_cells').select('x,y,owner_id,last_pass').eq('map',st.map).eq('discipline',st.disc).gte('x',x1).lte('x',x2).gte('y',y1).lte('y',y2).order('x').order('y').range(from,from+999)
     :sb.rpc('rc_cells_agg',{p_map:st.map,p_discipline:st.disc,p_x1:x1,p_x2:x2,p_y1:y1,p_y2:y2,p_f:f,p_mine:mineArr.length?mineArr:['00000000-0000-0000-0000-000000000000']}).range(from,from+999);
   const MAXP=f===1?25:30;
   for(let g=0;g<MAXP;g+=5){          // pages de 1000 lignes chargées 5 par 5 en parallèle
@@ -353,11 +352,11 @@ async function refreshMap(){
   rows.forEach(r=>{
     let rect,owner,newest,isMine;
     if(f===1){
-      const age=(now-new Date(r.last_pass))/864e5;isMine=mine.has(r.owner_id);owner=r.owner_id;newest=r.last_pass;
-      rect=L.rectangle(cellRect(r.x,r.y),{renderer:cellRenderer,stroke:true,color:'#fff',weight:.6,opacity:.5,fillColor:'rgb('+(isMine?'47,111,235':hue(owner))+')',fillOpacity:age>14?.2:(isMine?.6:.45),interactive:true});
+      isMine=mine.has(r.owner_id);owner=r.owner_id;newest=r.last_pass;
+      rect=L.rectangle(cellRect(r.x,r.y),{renderer:cellRenderer,stroke:true,color:'#fff',weight:.6,opacity:.5,fillColor:'rgb('+(isMine?'47,111,235':hue(owner))+')',fillOpacity:isMine?.6:.45,interactive:true});
     }else{
       isMine=r.n_mine*2>=r.n;owner=r.top_owner;newest=r.newest;
-      const age=(now-new Date(newest))/864e5,fill=Math.min(1,r.n/(f*f)),op=(0.3+0.45*fill)*(age>14?.45:1);
+      const fill=Math.min(1,r.n/(f*f)),op=0.3+0.45*fill;
       rect=L.rectangle(blockRect(r.blk_x,r.blk_y,f),{renderer:cellRenderer,stroke:false,fillColor:'rgb('+(isMine?'47,111,235':hue(owner))+')',fillOpacity:op,interactive:true});
     }
     rect.on('click',()=>openCell({owner_id:owner,last_pass:newest,count:f===1?1:r.n},rect));cellLayer.addLayer(rect);});
@@ -370,21 +369,20 @@ async function nameOf(id){
   return st.names[id]=(p.data&&p.data.pseudo)||(c.data&&c.data.name)||'Inconnu';
 }
 async function openCell(r,rect){
-  const n=await nameOf(r.owner_id),left=Math.max(0,Math.ceil(TTL-(Date.now()-new Date(r.last_pass))/864e5));
-  rect.bindPopup(`<b>${esc(n)}</b><br>${r.count>1?r.count+' mailles dans ce bloc · ':''}Libérée dans ${left} j`).openPopup();
+  const n=await nameOf(r.owner_id),d=new Date(r.last_pass).toLocaleDateString('fr-FR');
+  rect.bindPopup(`<b>${esc(n)}</b><br>${r.count>1?r.count+' mailles dans ce bloc · ':''}Dernier passage le ${d}`).openPopup();
 }
 
 async function loadStats(){
   if(!st.user)return;
   const solo=st.map==='solo',ids=[...mineIds()];
   $('#stLabel').textContent=solo?'Territoire détenu':'Territoire de tes clubs';
-  const q=(extra)=>{let r=sb.from('rc_cells').select('*',{count:'exact',head:true}).eq('map',st.map).eq('discipline',st.disc).in('owner_id',ids.length?ids:['00000000-0000-0000-0000-000000000000']).gt('last_pass',daysAgo(TTL));return extra?extra(r):r;};
-  const [all,soon,mid]=await Promise.all([q(),q(r=>r.lte('last_pass',daysAgo(14))),q(r=>r.gt('last_pass',daysAgo(14)).lte('last_pass',daysAgo(7)))]);
+  const q=(extra)=>{let r=sb.from('rc_cells').select('*',{count:'exact',head:true}).eq('map',st.map).eq('discipline',st.disc).in('owner_id',ids.length?ids:['00000000-0000-0000-0000-000000000000']);return extra?extra(r):r;};
+  const all=await q();
   const n=all.count||0;$('#stKm').textContent=(n*KM2).toFixed(1).replace('.',',');
   const {data:rk}=await sb.rpc('rc_ranking',{p_map:st.map,p_discipline:st.disc});
   const pos=(rk||[]).find(r=>ids.includes(r.owner));$('#stRank').textContent=pos?pos.pos+(pos.pos==1?'er':'e'):'–';
-  const d=[[soon.count||0,'Dans moins de 7 jours','#D93F1F'],[mid.count||0,'Dans 7 à 14 jours','#C26F12']];
-  $('#defend').innerHTML=n?d.map(x=>`<div class="item"><div style="width:14px;height:14px;border-radius:4px;background:${x[2]}"></div><div class="grow"><b>${x[0]} mailles</b><small>${x[1]} (${(x[0]*KM2).toFixed(2).replace('.',',')} km²)</small></div></div>`).join(''):'<div class="item"><div class="grow"><small>Tu n’as pas encore de territoire. Importe ta première sortie.</small></div></div>';
+  $('#defend').innerHTML=n?`<div class="item"><div class="grow"><b>${n.toLocaleString('fr-FR')} mailles</b><small>${(n*KM2).toFixed(2).replace('.',',')} km² · ${DISC[st.disc]}</small></div></div>`:'<div class="item"><div class="grow"><small>Tu n\u2019as pas encore de territoire. Importe ta première sortie.</small></div></div>';
   const {data:rd}=await sb.from('rc_rides').select('title,started_at,distance_km,new_cells,discipline,club_id').order('started_at',{ascending:false}).limit(5);
   $('#rides').innerHTML=(rd&&rd.length)?rd.map(r=>`<div class="item"><div class="grow"><b>${esc(r.title||'Sortie')}</b><small>${new Date(r.started_at).toLocaleDateString('fr-FR')} · ${r.distance_km??'?'} km · ${DISC[r.discipline]}${r.club_id?' · club':''}</small></div><b>+${(r.new_cells*KM2).toFixed(2).replace('.',',')} km²</b></div>`).join(''):'<div class="item"><div class="grow"><small>Aucune sortie pour l’instant.</small></div></div>';
 }
