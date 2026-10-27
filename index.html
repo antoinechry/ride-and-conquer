@@ -198,7 +198,7 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)
         <h2>Règles</h2>
         <ul style="margin:0;padding-left:20px;line-height:1.6;color:var(--mut)">
           <li>Chaque maille traversée est à toi (ou à ton club).</li>
-          <li>Une boucle fermée prend aussi son intérieur.</li>
+          <li>Une zone fermée par ton tracé (boucle) prend aussi son intérieur.</li>
           <li>Une maille reste à toi jusqu'à ce qu'un autre cycliste la traverse.</li>
           <li>Une même sortie importée deux fois ne compte qu'une fois.</li>
           <li>Les traces trop rapides (plus de 55 km/h de moyenne) sont refusées.</li>
@@ -595,6 +595,19 @@ $('#chipsImp').addEventListener('click',e=>{const b=e.target.closest('button');i
 function fillForWho(){$('#forWho').innerHTML='<option value="">Moi (carte solo)</option>'+st.myClubs.map(c=>`<option value="${c.id}">Club : ${esc(c.name)}</option>`).join('');}
 const hav=(a,b)=>{const R=6371,r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lon-a.lon)*r,x=Math.sin(dl/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(x));};
 
+// Intérieur de toute zone fermée par la trace : mailles non traversées inaccessibles depuis l'extérieur
+function interior(set){
+  let minx=1e18,maxx=-1e18,miny=1e18,maxy=-1e18;const cs=[];
+  for(const k of set){const [x,y]=k.split(',').map(Number);cs.push([x,y]);if(x<minx)minx=x;if(x>maxx)maxx=x;if(y<miny)miny=y;if(y>maxy)maxy=y;}
+  const w=maxx-minx+3,h=maxy-miny+3;if(w>700||h>700)return [];
+  const g=new Uint8Array(w*h);cs.forEach(([x,y])=>g[(y-miny+1)*w+(x-minx+1)]=1);
+  const stk=new Int32Array(w*h);let sp=0;stk[sp++]=0;g[0]=2;
+  while(sp){const i=stk[--sp],x=i%w,y=(i-x)/w;
+    if(x>0&&g[i-1]===0){g[i-1]=2;stk[sp++]=i-1;}if(x<w-1&&g[i+1]===0){g[i+1]=2;stk[sp++]=i+1;}
+    if(y>0&&g[i-w]===0){g[i-w]=2;stk[sp++]=i-w;}if(y<h-1&&g[i+w]===0){g[i+w]=2;stk[sp++]=i+w;}}
+  const out=[];for(let i=0;i<g.length;i++)if(g[i]===0){const x=i%w;out.push((x-1+minx)+','+((i-x)/w-1+miny));}
+  return out;
+}
 function analyse(text){
   const doc=new DOMParser().parseFromString(text,'application/xml');
   if(doc.getElementsByTagName('parsererror').length)throw new Error('Ce fichier n’est pas un GPX lisible.');
@@ -612,20 +625,8 @@ function analyse(text){
     if(i){const dx=cp[i][0]-cp[i-1][0],dy=cp[i][1]-cp[i-1][1],n=Math.ceil(Math.hypot(dx,dy)/.4);for(let k=1;k<n;k++)add(cp[i-1][0]+dx*k/n,cp[i-1][1]+dy*k/n);}
   }
   const traced=set.size;let loop=false;
-  const dEnd=Math.hypot(cp[0][0]-cp[cp.length-1][0],cp[0][1]-cp[cp.length-1][1]);
-  if(dEnd<=3&&cp.length>=20){
-    const step=Math.max(1,Math.floor(cp.length/300)),poly=cp.filter((_,i)=>i%step===0);
-    let minx=1e18,maxx=-1e18,miny=1e18,maxy=-1e18;poly.forEach(p=>{minx=Math.min(minx,p[0]);maxx=Math.max(maxx,p[0]);miny=Math.min(miny,p[1]);maxy=Math.max(maxy,p[1]);});
-    const w=Math.ceil(maxx)-Math.floor(minx),h=Math.ceil(maxy)-Math.floor(miny);
-    if(w<=250&&h<=250){
-      const fill=[];
-      for(let x=Math.floor(minx);x<Math.ceil(maxx);x++)for(let y=Math.floor(miny);y<Math.ceil(maxy);y++){
-        const px=x+.5,py=y+.5;let ins=false;
-        for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];if((a[1]>py)!==(b[1]>py)&&px<(b[0]-a[0])*(py-a[1])/(b[1]-a[1])+a[0])ins=!ins;}
-        if(ins)fill.push(x+','+y);}
-      if(fill.length&&fill.length+set.size<=40000){fill.forEach(k=>set.add(k));loop=true;}
-    }
-  }
+  const fill=interior(set);
+  if(fill.length&&fill.length+set.size<=40000){fill.forEach(k=>set.add(k));loop=true;}
   const cells=[...set].map(k=>k.split(',').map(Number));
   const started=t0?new Date(t0):new Date();
   const fingerprint=(t0?new Date(t0).toISOString():'sans-heure')+'|'+km.toFixed(2)+'|'+pts[0].lat.toFixed(4)+','+pts[0].lon.toFixed(4);
@@ -678,7 +679,7 @@ $('#icuOff').addEventListener('click',async()=>{try{await icuCall({action:'disco
 $('#icuSync').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
   $$('#icuSync button').forEach(x=>x.disabled=true);msg($('#icuMsg'),'Synchronisation en cours… cela peut prendre une minute.');$('#icuRes').innerHTML='';
   try{const d=await icuCall({action:'sync',days:+b.dataset.days});
-    msg($('#icuMsg'),`${d.found} sorties trouvées · ${d.imported} importées (${d.cells} mailles, ${d.new_cells} nouvelles pour toi, soit ${(d.new_cells*KM2).toFixed(2).replace('.',',')} km²) · ${d.duplicates} déjà connues.`,'ok');
+    msg($('#icuMsg'),`${d.found} sorties trouvées · ${d.imported} importées (${d.cells} mailles, ${d.new_cells} nouvelles pour toi, soit ${(d.new_cells*KM2).toFixed(2).replace('.',',')} km²) · ${d.duplicates} déjà connues`+(d.filled?` · ${d.filled} mailles d’intérieur de boucle récupérées (${(d.filled*KM2).toFixed(2).replace('.',',')} km²)`:'')+'.','ok');
     if(d.skipped.length)$('#icuRes').innerHTML='<h2 style="margin-top:16px">Ignorées</h2><div class="list">'+d.skipped.map(x=>`<div class="item"><div class="grow"><small>${esc(x)}</small></div></div>`).join('')+'</div>';
     icuStatus.keep=true;
   }catch(err){msg($('#icuMsg'),err.message,'err');}
