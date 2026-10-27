@@ -349,17 +349,25 @@ async function refreshMap(){
     if(done)break;
   }
   cellLayer.clearLayers();
+  // Les mailles voisines d'un même propriétaire sont fusionnées en une seule forme pleine : pas de quadrillage
+  const groups=new Map(),look=new Map();
   rows.forEach(r=>{
-    let rect,owner,newest,isMine;
-    if(f===1){
-      isMine=mine.has(r.owner_id);owner=r.owner_id;newest=r.last_pass;
-      rect=L.rectangle(cellRect(r.x,r.y),{renderer:cellRenderer,stroke:true,color:'#fff',weight:.6,opacity:.5,fillColor:'rgb('+(isMine?'47,111,235':hue(owner))+')',fillOpacity:isMine?.6:.45,interactive:true});
-    }else{
-      isMine=r.n_mine*2>=r.n;owner=r.top_owner;newest=r.newest;
-      const fill=Math.min(1,r.n/(f*f)),op=0.3+0.45*fill;
-      rect=L.rectangle(blockRect(r.blk_x,r.blk_y,f),{renderer:cellRenderer,stroke:false,fillColor:'rgb('+(isMine?'47,111,235':hue(owner))+')',fillOpacity:op,interactive:true});
-    }
-    rect.on('click',()=>openCell({owner_id:owner,last_pass:newest,count:f===1?1:r.n},rect));cellLayer.addLayer(rect);});
+    let owner,isMine,x,y,newest,count,op;
+    if(f===1){owner=r.owner_id;isMine=mine.has(owner);x=r.x;y=r.y;newest=r.last_pass;count=1;op=isMine?.6:.45;}
+    else{owner=r.top_owner;isMine=r.n_mine*2>=r.n;x=r.blk_x;y=r.blk_y;newest=r.newest;count=r.n;
+      const fill=Math.min(1,r.n/(f*f));op=Math.round((0.3+0.45*(fill<.34?.17:fill<.67?.5:.84))*100)/100;}
+    look.set(x+','+y,{owner,newest,count});
+    const key=(isMine?'m':owner)+'|'+op;
+    let g=groups.get(key);if(!g){g={isMine,owner,op,rings:[]};groups.set(key,g);}
+    g.rings.push(f===1?cellRect(x,y):blockRect(x,y,f));
+  });
+  groups.forEach(g=>{
+    const rings=g.rings.map(r=>[r[0],[r[0][0],r[1][1]],r[1],[r[1][0],r[0][1]]]);
+    const poly=L.polygon(rings,{renderer:cellRenderer,stroke:false,fillColor:'rgb('+(g.isMine?'47,111,235':hue(g.owner))+')',fillOpacity:g.op,interactive:true});
+    poly.on('click',e=>{const q=SM.project(e.latlng),c=look.get(Math.floor(q.x/(S*f))+','+Math.floor(q.y/(S*f)));
+      if(c)openCell({owner_id:c.owner,last_pass:c.newest,count:c.count},e.latlng);});
+    cellLayer.addLayer(poly);
+  });
   if(f===1&&rows.length>=25000){hint.style.display='block';hint.textContent='Zone très dense : zoome pour tout afficher.';}
   else if(f>1&&rows.length){hint.style.display='block';hint.textContent='Vue regroupée : zoome pour voir les mailles une à une.';}
 }
@@ -368,9 +376,9 @@ async function nameOf(id){
   const [p,c]=await Promise.all([sb.from('rc_profiles').select('pseudo').eq('id',id).maybeSingle(),sb.from('rc_clubs').select('name').eq('id',id).maybeSingle()]);
   return st.names[id]=(p.data&&p.data.pseudo)||(c.data&&c.data.name)||'Inconnu';
 }
-async function openCell(r,rect){
+async function openCell(r,latlng){
   const n=await nameOf(r.owner_id),d=new Date(r.last_pass).toLocaleDateString('fr-FR');
-  rect.bindPopup(`<b>${esc(n)}</b><br>${r.count>1?r.count+' mailles dans ce bloc · ':''}Dernier passage le ${d}`).openPopup();
+  L.popup().setLatLng(latlng).setContent(`<b>${esc(n)}</b><br>${r.count>1?r.count+' mailles dans ce bloc · ':''}Dernier passage le ${d}`).openOn(map);
 }
 
 async function loadStats(){
