@@ -310,8 +310,8 @@ function initMap(){
   if(map)return;
   map=L.map('map',{center:[48.62,7.76],zoom:12,minZoom:5,zoomControl:false});
   L.control.zoom({position:'bottomright'}).addTo(map);
-  L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,
-    attribution:'Données © contributeurs <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, SRTM | Rendu © <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'}).addTo(map);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,
+    attribution:'Tuiles © <a href="https://www.esri.com">Esri</a> — HERE, Garmin, FAO, NOAA, USGS, © contributeurs <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
   cellRenderer=L.canvas({padding:.5});cellLayer=L.layerGroup().addTo(map);
   map.on('moveend',refreshMap);
   if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>map.setView([p.coords.latitude,p.coords.longitude],13),()=>{},{timeout:5000});
